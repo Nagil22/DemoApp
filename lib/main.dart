@@ -7,6 +7,7 @@ import 'admin_screen.dart';
 import 'nav/nav_items.dart';
 import 'screens/login_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/school_dashboard_screen.dart';
@@ -53,10 +54,11 @@ class MyApp extends StatelessWidget {
           ),
           darkTheme: ThemeData.dark(),
           themeMode: themeProvider.themeMode,
-          initialRoute: '/login',
+          initialRoute: '/onboarding',
           routes: {
             '/admin-panel': (context) => AdminPanelScreen(),
             '/login': (context) => const LoginScreen(),
+            '/onboarding': (context) => const OnBoardingScreen(),
             '/signup': (context) => const SignUpScreen(),
             '/profile': (context) => const ProfileScreen(
               username: '',
