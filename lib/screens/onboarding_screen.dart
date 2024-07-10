@@ -1,3 +1,4 @@
+import 'package:demo/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 
@@ -10,6 +11,8 @@ class OnBoardingScreen extends StatefulWidget {
 }
 class _OnBoardingScreenState extends State<OnBoardingScreen>{
   late PageController _pageController;
+
+  int _pageIndex = 0;
 
   @override
   void initState(){
@@ -33,6 +36,11 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>{
                   child: PageView.builder(
                       itemCount: demo_data.length,
                       controller: _pageController,
+                      onPageChanged: (index){
+                        setState(() {
+                          _pageIndex = index;
+                        });
+                      },
                       itemBuilder: (context, index) => OnBoardContent(
                         image: demo_data[index].image,
                         title: demo_data[index].title,
@@ -44,7 +52,9 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>{
                 children: [
                   ElevatedButton(
                   onPressed: () {
-                    _pageController.nextPage(duration: Duration(milliseconds: 300), curve: Curves.ease);
+                    setState(() {
+                      _pageIndex = 2;
+                    });
                   },
                   style: ElevatedButton.styleFrom(
                     shadowColor: Colors.transparent,
@@ -53,26 +63,37 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>{
                     ),
                     backgroundColor: Colors.transparent,
                   ),
-                  child: Text(
+                  child: const Text(
                       "Skip",
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.black)
+                    ),
                   ),
-                ),
-
+                  const Spacer(),
+                  ...List.generate(
+                    demo_data.length,
+                        (index) => Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: DotIndicator(isActive: index == _pageIndex),
+                        )
+                    , ),
                   const Spacer(),
                   SizedBox(
                     height: 60,
-                    width: 60,
+                    width:  _pageIndex == 2 ? 81 : 60,
                     child: ElevatedButton(
                       onPressed: () {
-                        _pageController.nextPage(duration: Duration(milliseconds: 300), curve: Curves.ease);
+                        _pageIndex == 2 ? onDone(context) : _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.ease);
                       },
                       style: ElevatedButton.styleFrom(
                         shape: const CircleBorder(),
                         backgroundColor: Colors.blue,
                       ),
-                      child: SvgPicture.asset(
+                      child: _pageIndex == 2 ? const Text(
+                          "Done",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white)
+                      ) :SvgPicture.asset(
                           "assets/illustrations/arrowRight.svg",
                           color: Colors.white
                       ),
@@ -89,6 +110,32 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>{
   }
 }
 
+class DotIndicator extends StatelessWidget{
+  const DotIndicator({
+    Key? key,
+    this.isActive = false,
+}) : super(key: key);
+
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context){
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      height: isActive ? 12 : 6,
+      width: 4,
+      decoration:  BoxDecoration(
+        color:  isActive ? Colors.blue : Colors.blue.withOpacity(0.4),
+          borderRadius: const BorderRadius.all(Radius.circular(12))
+      ),
+    );
+  }
+}
+
+void onDone(context) async{
+  Navigator.pushReplacement(context,
+  MaterialPageRoute(builder: (context) => const LoginScreen()));
+}
 class Onboard {
   final String image, title, description;
 

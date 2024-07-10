@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'admin_screen.dart';
 import 'nav/nav_items.dart';
 import 'screens/login_screen.dart';
@@ -19,11 +20,14 @@ import 'dash_screens/notifications_screen.dart';
 import 'firebase_options.dart';
 import 'theme_provider.dart';
 
+bool showOnBoarding = true;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  final prefs = await SharedPreferences.getInstance();
+  showOnBoarding = prefs.getBool('ON_BOARDING') ?? true;
   runApp(
     MultiProvider(
       providers: [
@@ -54,7 +58,7 @@ class MyApp extends StatelessWidget {
           ),
           darkTheme: ThemeData.dark(),
           themeMode: themeProvider.themeMode,
-          initialRoute: '/onboarding',
+          initialRoute: showOnBoarding ? '/onboarding' : '/login',
           routes: {
             '/admin-panel': (context) => AdminPanelScreen(),
             '/login': (context) => const LoginScreen(),
