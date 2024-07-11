@@ -1,6 +1,7 @@
 import 'package:demo/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OnBoardingScreen extends StatefulWidget {
   const OnBoardingScreen({Key? key}) : super(key: key);
@@ -64,7 +65,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>{
                     backgroundColor: Colors.transparent,
                   ),
                   child: const Text(
-                      "Skip",
+                      "SKIP",
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.black)
                     ),
@@ -80,23 +81,26 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>{
                   const Spacer(),
                   SizedBox(
                     height: 60,
-                    width:  _pageIndex == 2 ? 81 : 60,
+                    width:  90,
                     child: ElevatedButton(
                       onPressed: () {
                         _pageIndex == 2 ? onDone(context) : _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.ease);
                       },
                       style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30.0),
+                        ),
                         backgroundColor: Colors.blue,
                       ),
                       child: _pageIndex == 2 ? const Text(
-                          "Done",
+                          "DONE",
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.white)
-                      ) :SvgPicture.asset(
-                          "assets/illustrations/arrowRight.svg",
-                          color: Colors.white
-                      ),
+                      ) : const Text(
+                          "NEXT",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white)
+                      )
                     ),
                   ),
                 ],
@@ -133,8 +137,11 @@ class DotIndicator extends StatelessWidget{
 }
 
 void onDone(context) async{
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('ON_BOARDING', false);
   Navigator.pushReplacement(context,
-  MaterialPageRoute(builder: (context) => const LoginScreen()));
+    MaterialPageRoute(builder: (context) => const LoginScreen()
+  ));
 }
 class Onboard {
   final String image, title, description;
