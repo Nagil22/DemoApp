@@ -49,6 +49,7 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'Dashboard App',
           theme: ThemeData(
+            scaffoldBackgroundColor: const Color(0xFFEFEFEF),
             primarySwatch: Colors.blue,
             textTheme: const TextTheme(
               displayLarge: TextStyle(fontSize: 72.0, fontWeight: FontWeight.bold),

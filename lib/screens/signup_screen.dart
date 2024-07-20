@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -121,52 +122,113 @@ class SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Complete Registration')),
+      appBar: AppBar(),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(30.0),
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              TextFormField(
-                controller: _usernameController,
-                decoration: const InputDecoration(labelText: 'Username'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your username';
-                  }
-                  return null;
-                },
+              const Spacer(),
+              Text("Create an account",
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineMedium!
+                      .copyWith(fontWeight: FontWeight.w700)
               ),
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  return null;
-                },
+              const Spacer(),
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical:5),
+                decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(29)
+                ),
+                child:
+                    TextFormField(
+                      controller: _usernameController,
+                      decoration: const InputDecoration(
+                          hintText: 'Username',
+                          hintStyle: TextStyle(color: Colors.grey),
+                          border: InputBorder.none
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your username';
+                        }
+                        return null;
+                      },
+                    )
               ),
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Password'),
-                obscureText: true,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your password';
-                  }
-                  return null;
-                },
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical:5),
+                decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(29)
+                ),
+                child:
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: const InputDecoration(
+                          hintText: 'Email',
+                          hintStyle: TextStyle(color: Colors.grey),
+                          border: InputBorder.none),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your email';
+                        }
+                        return null;
+                      },
+                    )
               ),
-              const SizedBox(height: 20),
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical:5),
+                decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(29)
+                ),
+                child:
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: const InputDecoration(
+                          hintText: 'Password',
+                          hintStyle: TextStyle(color: Colors.grey),
+                          border: InputBorder.none
+                      ),
+                      obscureText: true,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your password';
+                        }
+                        return null;
+                      },
+                    )
+              ),
+              const Spacer(),
               ElevatedButton(
                 onPressed: _verifyAndSignUp,
-                child: _loading
-                    ? const CircularProgressIndicator()
-                    : const Text('Complete Registration'),
+                style: ElevatedButton.styleFrom(
+                  elevation: 4,
+                  minimumSize: const Size(350, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50.0),
+                  ),
+                  backgroundColor: Colors.blue,
+                ),
+                child: _loading ?
+                LoadingAnimationWidget.fourRotatingDots(
+                  color: Colors.white,
+                  size: 50,
+                )
+                    :
+                const Text('COMPLETE REGISTRATION',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white)
+                ),
               ),
             ],
           ),
