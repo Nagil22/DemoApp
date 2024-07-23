@@ -16,6 +16,14 @@ class LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _loading = false;
 
+  bool _passwordNotShown = true;
+
+  void _toggleVisibility() {
+    setState(() {
+      _passwordNotShown = !_passwordNotShown;
+    });
+  }
+
   void _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -110,6 +118,7 @@ class LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       ///// appBar: AppBar(title: const Text('Login')),
       body: Padding(
         padding: const EdgeInsets.all(30.0),
@@ -157,7 +166,7 @@ class LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               Container(
-                margin: const EdgeInsets.symmetric(vertical: 20),
+                margin: const EdgeInsets.only(top: 10),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical:5),
                 decoration: BoxDecoration(
                     color: Colors.blue.withOpacity(0.05),
@@ -165,12 +174,19 @@ class LoginScreenState extends State<LoginScreen> {
                 ),
               child: TextFormField(
                       controller: _passwordController,
-                      decoration: const InputDecoration(
+                      decoration:  InputDecoration(
                           hintText: 'Your Password',
-                          hintStyle: TextStyle(color: Colors.grey),
+                          hintStyle: const TextStyle(color: Colors.grey),
                           border: InputBorder.none,
-                          suffixIcon: Icon(Icons.visibility_off_outlined, color: Colors.grey,)),
-                      obscureText: true,
+                          suffixIcon: GestureDetector(
+                            onTap: _toggleVisibility,
+                            child: _passwordNotShown ?
+                            const Icon(Icons.visibility_off_outlined, color: Colors.grey)
+                                :
+                            const Icon(Icons.visibility_outlined, color: Colors.grey),
+                          )
+                      ),
+                      obscureText: _passwordNotShown,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your password';
@@ -179,7 +195,21 @@ class LoginScreenState extends State<LoginScreen> {
                       },
                     )
               ),
-              const Spacer(),
+              Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                       const Spacer(),
+                        TextButton(
+                          onPressed: () => Navigator.pushNamed(context, '/forgot'),
+                          child: const Text(
+                            'Forgot Password?',
+                            style: TextStyle(color: Colors.blue),
+                          )
+                      ),
+                    ],
+                  )
+              ),
               ElevatedButton(
                 onPressed: _login,
                 style: ElevatedButton.styleFrom(
@@ -193,7 +223,7 @@ class LoginScreenState extends State<LoginScreen> {
                 child: _loading ?
                     LoadingAnimationWidget.fourRotatingDots(
                       color: Colors.white,
-                      size: 50,
+                      size: 40,
                     )
                         :
                     const Text('LOGIN',
@@ -201,12 +231,27 @@ class LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(color: Colors.white)
                     ),
               ),
-              TextButton(
-                onPressed: () => Navigator.pushNamed(context, '/signup'),
-                child: const Text(
-                    'Do not have an account? Sign up',
-                    style: TextStyle(color: Colors.grey)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    child: const Text(
+                        'Do not have an account?',
+                        style: TextStyle(color: Colors.grey)),
+                    ),
+                  GestureDetector(
+                      onTap: (){},
+                      child: TextButton(
+                          onPressed: () => Navigator.pushNamed(context, '/signup'),
+                          child: const Text(
+                              'Sign up',
+                              style: TextStyle(color: Colors.blue)),
+                        ),
+                  )
+                ]
               ),
+
+              const Spacer(),
             ],
           ),
         ),

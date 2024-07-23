@@ -1,3 +1,5 @@
+import 'package:demo/screens/forgot_password.dart';
+import 'package:demo/screens/reset_password.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -65,6 +67,8 @@ class MyApp extends StatelessWidget {
             '/login': (context) => const LoginScreen(),
             '/onboarding': (context) => const OnBoardingScreen(),
             '/signup': (context) => const SignUpScreen(),
+            '/forgot': (context) => const ForgotPasswordScreen(),
+            '/reset': (context) => const ResetPasswordScreen(),
             '/profile': (context) => const ProfileScreen(
               username: '',
               email: '',

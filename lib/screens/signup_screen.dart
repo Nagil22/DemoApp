@@ -122,7 +122,8 @@ class SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      backgroundColor: Colors.white,
+      appBar: AppBar(backgroundColor: Colors.white),
       body: Padding(
         padding: const EdgeInsets.all(30.0),
         child: Form(
@@ -137,7 +138,6 @@ class SignUpScreenState extends State<SignUpScreen> {
                       .headlineMedium!
                       .copyWith(fontWeight: FontWeight.w700)
               ),
-              const Spacer(),
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 20),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical:5),
@@ -208,7 +208,6 @@ class SignUpScreenState extends State<SignUpScreen> {
                       },
                     )
               ),
-              const Spacer(),
               ElevatedButton(
                 onPressed: _verifyAndSignUp,
                 style: ElevatedButton.styleFrom(
@@ -222,7 +221,7 @@ class SignUpScreenState extends State<SignUpScreen> {
                 child: _loading ?
                 LoadingAnimationWidget.fourRotatingDots(
                   color: Colors.white,
-                  size: 50,
+                  size: 40,
                 )
                     :
                 const Text('COMPLETE REGISTRATION',
@@ -230,6 +229,7 @@ class SignUpScreenState extends State<SignUpScreen> {
                     style: TextStyle(color: Colors.white)
                 ),
               ),
+              const Spacer(),
             ],
           ),
         ),
