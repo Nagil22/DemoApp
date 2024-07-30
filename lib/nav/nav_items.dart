@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../screens/profile_screen.dart';
 import '../screens/settings_screen.dart';
-import '../screens/school_dashboard_screen.dart';
+import '../dash_screens/calendar_screen.dart';
 import '../dash_screens/payments_screen.dart';
 
 class NavItem {
@@ -15,7 +15,7 @@ class NavItem {
 class NavItems extends ChangeNotifier {
   int selectedIndex = 0;
 
-  void updateSelectedIndex(int index) { // Renamed function to avoid conflict
+  void changeNavIndex({required int index}) {
     selectedIndex = index;
     notifyListeners();
   }
@@ -23,8 +23,8 @@ class NavItems extends ChangeNotifier {
   List<NavItem> items = [
     NavItem(
       id: 1,
-      icon: Icons.home,
-      destination: const SchoolDashboardScreen(username: '', userId: '',),
+      icon: Icons.calendar_month,
+      destination: const CalendarScreen(),
     ),
     NavItem(
       id: 2,
@@ -42,7 +42,4 @@ class NavItems extends ChangeNotifier {
       destination: const SettingsScreen(),
     ),
   ];
-
-  void changeNavIndex({required int index}) {}
-
 }
