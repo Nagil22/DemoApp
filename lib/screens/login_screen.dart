@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +15,14 @@ class LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _loading = false;
+
+  bool _passwordNotShown = true;
+
+  void _toggleVisibility() {
+    setState(() {
+      _passwordNotShown = !_passwordNotShown;
+    });
+  }
 
   void _login() async {
     if (_formKey.currentState!.validate()) {
@@ -109,44 +118,140 @@ class LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
+      backgroundColor: Colors.white,
+      ///// appBar: AppBar(title: const Text('Login')),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(30.0),
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  return null;
-                },
+              const Spacer(),
+              Text("Welcome Back 👋🏽",
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineMedium!
+                    .copyWith(fontWeight: FontWeight.w700)
               ),
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Password'),
-                obscureText: true,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your password';
-                  }
-                  return null;
-                },
+              const Text("Login to your account",
+                  style: TextStyle(fontWeight: FontWeight.normal)
               ),
-              const SizedBox(height: 20),
+              // SvgPicture.asset(
+              //     "assets/illustrations/login.svg",
+              //     height: size.height * 0.2
+              // ),
+              const SizedBox(height: 30),
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical:5),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(29)
+                ),
+                child: TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                      // icon: Icon(Icons.person, color: ,),
+                      hintText: 'Your email',
+                      hintStyle: TextStyle(color: Colors.grey),
+                      border: InputBorder.none
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical:5),
+                decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(29)
+                ),
+              child: TextFormField(
+                      controller: _passwordController,
+                      decoration:  InputDecoration(
+                          hintText: 'Your Password',
+                          hintStyle: const TextStyle(color: Colors.grey),
+                          border: InputBorder.none,
+                          suffixIcon: GestureDetector(
+                            onTap: _toggleVisibility,
+                            child: _passwordNotShown ?
+                            const Icon(Icons.visibility_off_outlined, color: Colors.grey)
+                                :
+                            const Icon(Icons.visibility_outlined, color: Colors.grey),
+                          )
+                      ),
+                      obscureText: _passwordNotShown,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your password';
+                        }
+                        return null;
+                      },
+                    )
+              ),
+              Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                       const Spacer(),
+                        TextButton(
+                          onPressed: () => Navigator.pushNamed(context, '/forgot'),
+                          child: const Text(
+                            'Forgot Password?',
+                            style: TextStyle(color: Colors.blue),
+                          )
+                      ),
+                    ],
+                  )
+              ),
               ElevatedButton(
                 onPressed: _login,
-                child: _loading ? const CircularProgressIndicator() : const Text('Login'),
+                style: ElevatedButton.styleFrom(
+                  elevation: 4,
+                  minimumSize: const Size(350, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50.0),
+                  ),
+                  backgroundColor: Colors.blue,
+                ),
+                child: _loading ?
+                    LoadingAnimationWidget.fourRotatingDots(
+                      color: Colors.white,
+                      size: 40,
+                    )
+                        :
+                    const Text('LOGIN',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white)
+                    ),
               ),
-              TextButton(
-                onPressed: () => Navigator.pushNamed(context, '/signup'),
-                child: const Text('Sign up'),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    child: const Text(
+                        'Do not have an account?',
+                        style: TextStyle(color: Colors.grey)),
+                    ),
+                  GestureDetector(
+                      onTap: (){},
+                      child: TextButton(
+                          onPressed: () => Navigator.pushNamed(context, '/signup'),
+                          child: const Text(
+                              'Sign up',
+                              style: TextStyle(color: Colors.blue)),
+                        ),
+                  )
+                ]
               ),
+
+              const Spacer(),
             ],
           ),
         ),
