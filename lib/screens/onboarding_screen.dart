@@ -1,10 +1,9 @@
 import 'package:demo/screens/login_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OnBoardingScreen extends StatefulWidget {
-  const OnBoardingScreen({Key? key}) : super(key: key);
+  const OnBoardingScreen({super.key});
 
   @override
   State<OnBoardingScreen> createState() => _OnBoardingScreenState();
@@ -116,9 +115,9 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>{
 
 class DotIndicator extends StatelessWidget{
   const DotIndicator({
-    Key? key,
+    super.key,
     this.isActive = false,
-}) : super(key: key);
+});
 
   final bool isActive;
 
@@ -173,11 +172,11 @@ final List<Onboard> demo_data=[
 
 class OnBoardContent extends StatelessWidget{
   const OnBoardContent({
-    Key? key,
+    super.key,
     required this.image,
     required this.title,
     required this.description,
-}): super(key: key);
+});
 
   final String image, title, description;
 

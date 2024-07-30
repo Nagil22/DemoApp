@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Import for Firestore
-import 'package:intl/intl.dart'; // For date formatting
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class SchoolDashboardScreen extends StatefulWidget {
@@ -23,6 +23,13 @@ class SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
   DateTime? _selectedDay;
   bool _isLoading = false;
   List<QueryDocumentSnapshot> _activities = [];
+  final Map<DateTime, List<Color>> _events = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _getActivitiesForDay(_focusedDay);
+  }
 
   // Fetch activities from Firestore for a specific day
   Future<void> _getActivitiesForDay(DateTime day) async {
@@ -43,6 +50,7 @@ class SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
       setState(() {
         _activities = snapshot.docs;
         _isLoading = false;
+        _events[start] = snapshot.docs.map((doc) => Color(doc['color'])).toList();
       });
     } catch (e) {
       setState(() {
@@ -115,6 +123,9 @@ class SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
             calendarFormat: _calendarFormat,
             selectedDayPredicate: (day) {
               return isSameDay(_selectedDay, day);
+            },
+            eventLoader: (day) {
+              return _events[day] ?? [];
             },
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
@@ -202,7 +213,7 @@ class SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
               label: '',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.list),
+              icon: Icon(Icons.payments),
               label: '',
             ),
             BottomNavigationBarItem(
@@ -220,7 +231,7 @@ class SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
                 Navigator.pushNamed(context, '/home');
                 break;
               case 1:
-                Navigator.pushNamed(context, '/todo-list');
+                Navigator.pushNamed(context, '/payments');
                 break;
               case 2:
                 Navigator.pushNamed(context, '/profile');
@@ -240,7 +251,7 @@ class SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
             ? Colors.black
             : Colors.yellow[700],
         child: Icon(
-          Icons.list,
+          Icons.add,
           color: Theme.of(context).brightness == Brightness.light
               ? Colors.white
               : Colors.black,
@@ -254,6 +265,9 @@ class SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
     String title = '';
     DateTime date = _selectedDay ?? DateTime.now();
     int color = Colors.blue.value; // Default color
+    final TextEditingController dateController = TextEditingController(
+      text: DateFormat('yyyy-MM-dd HH:mm').format(date),
+    );
 
     showDialog(
       context: context,
@@ -271,9 +285,7 @@ class SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
               ),
               TextField(
                 decoration: const InputDecoration(hintText: 'Date and Time'),
-                controller: TextEditingController(
-                  text: DateFormat('yyyy-MM-dd HH:mm').format(date),
-                ),
+                controller: dateController,
                 onTap: () async {
                   DateTime? pickedDate = await showDatePicker(
                     context: context,
@@ -297,6 +309,8 @@ class SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
                           pickedTime.hour,
                           pickedTime.minute,
                         );
+                        dateController.text =
+                            DateFormat('yyyy-MM-dd HH:mm').format(date);
                       });
                     }
                   }
@@ -306,7 +320,7 @@ class SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
               // Color picker for activity
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: Colors.primaries.map((colorValue) {
+                children: Colors.primaries.take(6).map((colorValue) {
                   return GestureDetector(
                     onTap: () {
                       setState(() {
@@ -334,14 +348,15 @@ class SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                FirebaseFirestore.instance.collection('activities').add({
+              onPressed: () async {
+                await FirebaseFirestore.instance.collection('activities').add({
                   'userId': widget.userId,
                   'title': title,
                   'date': Timestamp.fromDate(date),
                   'color': color,
                 });
                 Navigator.of(context).pop();
+                _getActivitiesForDay(date);
               },
               child: const Text('Add'),
             ),
