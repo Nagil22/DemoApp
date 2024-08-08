@@ -1,4 +1,6 @@
 import 'package:demo/screens/forgot_password.dart';
+import 'package:demo/screens/profile/account_page.dart';
+import 'package:demo/screens/profile/change_password.dart';
 import 'package:demo/screens/reset_password.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -67,12 +69,19 @@ class MyApp extends StatelessWidget {
             '/signup': (context) => const SignUpScreen(),
             '/forgot': (context) => const ForgotPasswordScreen(),
             '/reset': (context) => const ResetPasswordScreen(),
+            '/account': (context) => const AccountScreen(
+                userId: "",
+                username: "",
+                email: "",
+                userType: ""
+            ),
             '/profile': (context) => const ProfileScreen(
               username: '',
               email: '',
               userType: '',
               userId: '',
             ),
+            '/change-password': (context) => const ChangePasswordScreen(),
             '/settings': (context) => const SettingsScreen(),
             '/school-dashboard': (context) => const SchoolDashboardScreen(
               username: '', // Replace with actual username

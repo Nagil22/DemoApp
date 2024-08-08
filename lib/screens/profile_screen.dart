@@ -1,6 +1,10 @@
+import 'package:demo/screens/profile/profile_menus.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/widgets.dart';
+import 'package:hexcolor/hexcolor.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -78,93 +82,259 @@ class ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
-        backgroundColor: Colors.black,
+        backgroundColor:  Colors.transparent
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+      backgroundColor: HexColor(profileBgColor),
+      body: SingleChildScrollView(
+        child: Container(
+          padding: const EdgeInsets.all(16.0),
+          child:  Column(
             children: [
-              const Center(
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.black,
-                  child: Icon(Icons.person, size: 50, color: Colors.white),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Card(
-                color: Colors.grey[200],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                child: ListTile(
-                  title: Text(
-                    'Username: ${widget.username}',
-                    style: const TextStyle(fontSize: 18.0),
+               SizedBox(
+                width: 400,
+                height: 160,
+                child:  DecoratedBox(
+                  decoration:  BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  ),
+                  child:  Column (
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Row(
+                            children: [
+                              const SizedBox(width: 20),
+                              const CircleAvatar(
+                                radius: 25,
+                                backgroundColor: Colors.black,
+                                child: Icon(Icons.person, size: 25, color: Colors.white),
+                              ),
+                              const SizedBox(width: 20),
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'John Doe ${widget.username}',
+                                    style: const TextStyle(fontSize: 18.0, fontWeight: FontWeight.w600,),
+                                    textAlign: TextAlign.left,
+                                  ),
+                                  Text(
+                                    'hanif@app.com ${widget.email}',
+                                    style: TextStyle(fontSize: 13.0, color: HexColor(accentColor)),
+                                    textAlign: TextAlign.left,
+                                  ),
+                                ],
+                              ),
+                              const Spacer(),
+                            ],
+                        ),
+                       const SizedBox(height: 20),
+                       SizedBox(
+                         width: 400,
+                         height: 80,
+                         child:  DecoratedBox(
+                             decoration:  BoxDecoration(
+                               color: Colors.blue,
+                               borderRadius: BorderRadius.circular(20),
+                             ),
+                             child: const Column(
+                               mainAxisAlignment: MainAxisAlignment.center,
+                               crossAxisAlignment: CrossAxisAlignment.start,
+                               children: [
+                                 Row(
+                                   // mainAxisAlignment: MainAxisAlignment.center,
+                                   children: [
+                                     SizedBox(width: 20),
+                                     Icon(
+                                       CupertinoIcons.building_2_fill,
+                                       color: Colors.white,
+                                       size: 20.0,
+                                       semanticLabel: 'Text to announce in accessibility modes',
+                                     ),
+                                     SizedBox(width: 20),
+                                     Text(
+                                       'Year 12 at Example Academy',
+                                       style: TextStyle(fontSize: 15.0, fontWeight: FontWeight.w600, color: Colors.white),
+                                     ),
+                                     Spacer(),
+                                     Icon(
+                                       CupertinoIcons.chevron_forward,
+                                       color: Colors.white,
+                                       size: 18.0,
+                                       semanticLabel: 'Forward button to account',
+                                     ),
+                                     SizedBox(width: 20),
+                                   ],
+                                 )
+
+                               ],
+                             )
+                         )
+                       )
+                      ]
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
-              TextFormField(
-                initialValue: _email,
-                decoration: const InputDecoration(labelText: 'Email'),
-                onChanged: (value) {
-                  _email = value;
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter an email';
-                  }
-                  return null;
-                },
+              const SizedBox(height: 50),
+
+              // Personal Section
+              SizedBox(
+              width: 400,
+              height: 220,
+              child:  DecoratedBox(
+              decoration:  BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
               ),
-              const SizedBox(height: 10),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Password'),
-                onChanged: (value) {
-                  _password = value;
-                },
-                obscureText: true,
-                validator: (value) {
-                  if (value != null && value.isNotEmpty && value.length < 6) {
-                    return 'Password should be at least 6 characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              _isUpdating
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                onPressed: _updateProfile,
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: Colors.black,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                          child: Text(
+                              'Personal',
+                              style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.w600, color: HexColor(accentColor))
+                          ),
+                      ),
+                      ProfileMenu(title: "Account", subtitle: "Detail your profile information", icon: CupertinoIcons.person, onPress: () {Navigator.pushNamed(context, '/account');}),
+                      const Seperator(),
+                      ProfileMenu(title: "Change Password", subtitle: "Change to your new password", icon: CupertinoIcons.lock, onPress: () {Navigator.pushNamed(context, '/change-password');}),
+                    ],
                 ),
-                child: const Text('Update Profile'),
               ),
-              const Spacer(),
-              ElevatedButton(
-                onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                  if (context.mounted) {
-                    Navigator.pushReplacementNamed(context, '/login');
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: Colors.black,
+              ),
+              const SizedBox(height: 50),
+
+              // Other Section
+              SizedBox(
+                width: 400,
+                height: 280,
+                child:  DecoratedBox(
+                  decoration:  BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                        child: Text(
+                            'Other',
+                            style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.w600, color: HexColor(accentColor))
+                        ),
+                      ),
+                      ProfileMenu(title: "Attendance", subtitle: "Edit your attendance", icon: CupertinoIcons.doc_person, onPress: () {}),
+                      const Seperator(),
+                      ProfileMenu(title: "Notification Settings", subtitle: "Edit your notifications", icon: CupertinoIcons.bell, onPress: () {}),
+                      const Seperator(),
+                      ProfileMenu(title: "Sign Out", subtitle: "Sign out of the app", textColor: Colors.red, icon: CupertinoIcons.square_arrow_right, onPress: () {}),
+                    ],
+                  ),
                 ),
-                child: const Text('Logout'),
               ),
-            ],
+          ]
           ),
-        ),
+        )
       ),
+    );
+  }
+}
+
+class Seperator extends StatelessWidget {
+  const Seperator({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const SizedBox(height: 5),
+          Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(width: 330,height: 2, child: DecoratedBox(
+                decoration:  BoxDecoration(
+                  color: Colors.grey.withOpacity(0.1),
+                )
+            )
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+      ],
+    );
+
+  }
+}
+
+class ProfileMenu extends StatelessWidget {
+  const ProfileMenu({
+    Key? key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onPress,
+    this.endIcon = true,
+    this.textColor,
+
+}) : super(key: key);
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback onPress;
+  final bool endIcon;
+  final Color? textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onPress,
+      leading: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(100),
+                color: Colors.transparent,
+              ),
+              child: Icon(
+                icon,
+                color: Colors.blue,
+                size: 28.0,
+                semanticLabel: 'Text to announce in accessibility modes',
+              ),
+      ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+              title,
+              style: const TextStyle(fontSize: 16.0, fontWeight: FontWeight.w500).apply(color: textColor)
+          ),
+          Text(
+              subtitle,
+              style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.w300).apply(color: Colors.grey)
+          ),
+        ],
+      ),
+      trailing: endIcon ? Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(100),
+                    color: Colors.transparent,
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.chevron_forward,
+                    color: Colors.black,
+                    size: 18.0,
+                    semanticLabel: 'Forward button to account',
+                  ),
+                ) : null,
     );
   }
 }
