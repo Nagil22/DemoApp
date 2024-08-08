@@ -1,9 +1,9 @@
+import 'package:demo/screens/company_dashboard_screen.dart';
+import 'package:demo/screens/party_dashboard_screen.dart';
+import 'package:demo/screens/school_dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'screens/school_dashboard_screen.dart';
-import 'screens/company_dashboard_screen.dart';
-import 'screens/party_dashboard_screen.dart';   // Import Party Dashboard
 
 class AdminPanelScreen extends StatefulWidget {
   const AdminPanelScreen({super.key});
@@ -13,53 +13,70 @@ class AdminPanelScreen extends StatefulWidget {
 }
 
 class AdminPanelScreenState extends State<AdminPanelScreen> {
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _roleController = TextEditingController();
-  final TextEditingController _notificationTitleController = TextEditingController();
-  final TextEditingController _notificationBodyController = TextEditingController();
-  final TextEditingController _calendarTitleController = TextEditingController();
-  final TextEditingController _calendarDescriptionController = TextEditingController();
-  DateTime _calendarDate = DateTime.now();
+  int _selectedIndex = 0;
+
+  static const List<Widget> _widgetOptions = <Widget>[
+    DashboardScreen(),
+    NotificationsScreen(),
+    CalendarScreen(),
+    UserManagementScreen(),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 4, // Increase to accommodate Dashboard tab
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Admin Panel'),
-          backgroundColor: Colors.black,
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Notifications'),
-              Tab(text: 'Calendar'),
-              Tab(text: 'User Levels'),
-              Tab(text: 'Dashboards'), // Add Dashboard Tab
-            ],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Admin Panel'),
+        backgroundColor: Colors.black,
+      ),
+      body: _widgetOptions.elementAt(_selectedIndex),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: 'Dashboard',
           ),
-        ),
-        body: TabBarView(
-          children: [
-            _buildNotificationsTab(context),
-            _buildCalendarTab(context),
-            _buildUserLevelsTab(context),
-            _buildDashboardsTab(context), // Add Dashboards Tab Content
-          ],
-        ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: 'Notifications',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_today),
+            label: 'Calendar',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people),
+            label: 'Users',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.amber[800],
+        onTap: _onItemTapped,
       ),
     );
   }
+}
 
-  Widget _buildDashboardsTab(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           ElevatedButton(
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SchoolDashboardScreen(username: '', userId: '',)),
+                MaterialPageRoute(builder: (context) => const SchoolDashboardScreen(username: '', userId: '')),
               );
             },
             child: const Text('View Student Dashboard'),
@@ -69,7 +86,7 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const CompanyDashboardScreen(username: '', userId: '',)),
+                MaterialPageRoute(builder: (context) => const CompanyDashboardScreen(username: '', userId: '')),
               );
             },
             child: const Text('View Employee Dashboard'),
@@ -79,7 +96,7 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const PartyDashboardScreen(username: '', userId: '',)),
+                MaterialPageRoute(builder: (context) => const PoliticalPartyDashboardScreen(username: '', userId: '')),
               );
             },
             child: const Text('View Party Dashboard'),
@@ -88,24 +105,57 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
       ),
     );
   }
+}
 
-  // Push Notifications Tab
-  Widget _buildNotificationsTab(BuildContext context) {
+class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final TextEditingController notificationTitleController = TextEditingController();
+    final TextEditingController notificationBodyController = TextEditingController();
+
+    void sendNotification(BuildContext context) {
+      final String title = notificationTitleController.text.trim();
+      final String body = notificationBodyController.text.trim();
+      if (title.isNotEmpty && body.isNotEmpty) {
+        FirebaseFirestore.instance.collection('notifications').add({
+          'title': title,
+          'body': body,
+          'timestamp': Timestamp.now(),
+        }).then((value) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Notification "$title" sent.')),
+          );
+          notificationTitleController.clear();
+          notificationBodyController.clear();
+        }).catchError((error) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to send notification: $error')),
+          );
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please fill out all fields.')),
+        );
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
           TextField(
-            controller: _notificationTitleController,
+            controller: notificationTitleController,
             decoration: const InputDecoration(labelText: 'Notification Title'),
           ),
           TextField(
-            controller: _notificationBodyController,
+            controller: notificationBodyController,
             decoration: const InputDecoration(labelText: 'Notification Body'),
           ),
           ElevatedButton(
             onPressed: () {
-              _sendNotification(context);
+              sendNotification(context);
             },
             child: const Text('Send Notification'),
           ),
@@ -135,25 +185,52 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
       ),
     );
   }
+}
 
-  // Send Notification
-  void _sendNotification(BuildContext context) {
-    final String title = _notificationTitleController.text.trim();
-    final String body = _notificationBodyController.text.trim();
-    if (title.isNotEmpty && body.isNotEmpty) {
-      FirebaseFirestore.instance.collection('notifications').add({
+class CalendarScreen extends StatefulWidget {
+  const CalendarScreen({super.key});
+
+  @override
+  CalendarScreenState createState() => CalendarScreenState();
+}
+
+class CalendarScreenState extends State<CalendarScreen> {
+  final TextEditingController _calendarTitleController = TextEditingController();
+  final TextEditingController _calendarDescriptionController = TextEditingController();
+  DateTime _calendarDate = DateTime.now();
+
+  Future<void> _pickDate(BuildContext context) async {
+    DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _calendarDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+
+    if (pickedDate != null && pickedDate != _calendarDate) {
+      setState(() {
+        _calendarDate = pickedDate;
+      });
+    }
+  }
+
+  void _addCalendarEvent(BuildContext context) {
+    final String title = _calendarTitleController.text.trim();
+    final String description = _calendarDescriptionController.text.trim();
+    if (title.isNotEmpty && description.isNotEmpty) {
+      FirebaseFirestore.instance.collection('calendar').add({
         'title': title,
-        'body': body,
-        'timestamp': Timestamp.now(),
+        'description': description,
+        'date': Timestamp.fromDate(_calendarDate),
       }).then((value) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Notification "$title" sent.')),
+          SnackBar(content: Text('Event "$title" added.')),
         );
-        _notificationTitleController.clear();
-        _notificationBodyController.clear();
+        _calendarTitleController.clear();
+        _calendarDescriptionController.clear();
       }).catchError((error) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send notification: $error')),
+          SnackBar(content: Text('Failed to add event: $error')),
         );
       });
     } else {
@@ -163,8 +240,8 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
     }
   }
 
-  // Calendar Tab
-  Widget _buildCalendarTab(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -217,67 +294,61 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
       ),
     );
   }
+}
 
-  // Pick Date
-  Future<void> _pickDate(BuildContext context) async {
-    DateTime? pickedDate = await showDatePicker(
-      context: context,
-      initialDate: _calendarDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
-    );
+class UserManagementScreen extends StatelessWidget {
+  const UserManagementScreen({super.key});
 
-    if (pickedDate != null && pickedDate != _calendarDate) {
-      setState(() {
-        _calendarDate = pickedDate;
-      });
-    }
-  }
+  @override
+  Widget build(BuildContext context) {
+    final TextEditingController usernameController = TextEditingController();
+    final TextEditingController roleController = TextEditingController();
 
-  // Add Calendar Event
-  void _addCalendarEvent(BuildContext context) {
-    final String title = _calendarTitleController.text.trim();
-    final String description = _calendarDescriptionController.text.trim();
-    if (title.isNotEmpty && description.isNotEmpty) {
-      FirebaseFirestore.instance.collection('calendar').add({
-        'title': title,
-        'description': description,
-        'date': Timestamp.fromDate(_calendarDate),
-      }).then((value) {
+    void updateUserLevel(BuildContext context) {
+      final String username = usernameController.text.trim();
+      final String role = roleController.text.trim();
+      if (username.isNotEmpty && role.isNotEmpty) {
+        FirebaseFirestore.instance.collection('users').where('username', isEqualTo: username).get().then((querySnapshot) {
+          if (querySnapshot.docs.isNotEmpty) {
+            querySnapshot.docs.first.reference.update({'role': role}).then((value) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Level updated for $username.')),
+              );
+              usernameController.clear();
+              roleController.clear();
+            }).catchError((error) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Failed to update level: $error')),
+              );
+            });
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('User not found.')),
+            );
+          }
+        });
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Event "$title" added.')),
+          const SnackBar(content: Text('Please fill out all fields.')),
         );
-        _calendarTitleController.clear();
-        _calendarDescriptionController.clear();
-      }).catchError((error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add event: $error')),
-        );
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill out all fields.')),
-      );
+      }
     }
-  }
 
-  // User Levels Tab
-  Widget _buildUserLevelsTab(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
           TextField(
-            controller: _usernameController,
+            controller: usernameController,
             decoration: const InputDecoration(labelText: 'Username'),
           ),
           TextField(
-            controller: _roleController,
+            controller: roleController,
             decoration: const InputDecoration(labelText: 'Level'),
           ),
           ElevatedButton(
             onPressed: () {
-              _updateUserLevel(context);
+              updateUserLevel(context);
             },
             child: const Text('Update Level'),
           ),
@@ -306,36 +377,5 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
         ],
       ),
     );
-  }
-
-  // Update User Level
-  void _updateUserLevel(BuildContext context) {
-    final String username = _usernameController.text.trim();
-    final String role = _roleController.text.trim();
-    if (username.isNotEmpty && role.isNotEmpty) {
-      FirebaseFirestore.instance.collection('users').where('username', isEqualTo: username).get().then((querySnapshot) {
-        if (querySnapshot.docs.isNotEmpty) {
-          querySnapshot.docs.first.reference.update({'role': role}).then((value) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Level updated for $username.')),
-            );
-            _usernameController.clear();
-            _roleController.clear();
-          }).catchError((error) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to update level: $error')),
-            );
-          });
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('User not found.')),
-          );
-        }
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill out all fields.')),
-      );
-    }
   }
 }

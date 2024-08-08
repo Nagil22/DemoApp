@@ -16,9 +16,7 @@ import 'screens/signup_screen.dart';
 import 'screens/school_dashboard_screen.dart';
 import 'screens/company_dashboard_screen.dart';
 import 'screens/party_dashboard_screen.dart';
-import 'dash_screens/calendar_screen.dart';
 import 'dash_screens/payments_screen.dart';
-import 'dash_screens/notifications_screen.dart';
 import 'firebase_options.dart';
 import 'theme_provider.dart';
 
@@ -63,7 +61,7 @@ class MyApp extends StatelessWidget {
           themeMode: themeProvider.themeMode,
           initialRoute: showOnBoarding ? '/onboarding' : '/login',
           routes: {
-            '/admin-panel': (context) => AdminPanelScreen(),
+            '/admin-panel': (context) => const AdminPanelScreen(),
             '/login': (context) => const LoginScreen(),
             '/onboarding': (context) => const OnBoardingScreen(),
             '/signup': (context) => const SignUpScreen(),
@@ -84,7 +82,7 @@ class MyApp extends StatelessWidget {
               username: '', // Replace with actual username
               userId: '', // Replace with actual userId
             ),
-            '/party-dashboard': (context) => const PartyDashboardScreen(
+            '/party-dashboard': (context) => const PoliticalPartyDashboardScreen(
               username: '', // Replace with actual username
               userId: '', // Replace with actual userId
             ),
