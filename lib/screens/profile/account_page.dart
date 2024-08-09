@@ -1,8 +1,10 @@
 import 'package:demo/screens/profile/profile_menus.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hexcolor/hexcolor.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class AccountScreen extends StatefulWidget {
   final String userId;
@@ -82,90 +84,189 @@ class AccountScreenState extends State<AccountScreen> {
       appBar: AppBar(
           backgroundColor:  HexColor(profileBgColor)
       ),
-      body: Padding(
+      body: SingleChildScrollView(
+        child: Container(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Center(
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.black,
-                  child: Icon(Icons.person, size: 50, color: Colors.white),
-                ),
+               Column(
+                 children: [
+                   Image.asset(
+                       "assets/illustrations/profile.png",
+                       height:170
+                   ),
+                   const SizedBox(height: 20),
+                   Text(
+                     'Username: ${widget.username}',
+                     style: const TextStyle(fontSize: 24.0, fontWeight: FontWeight.w600),
+                   ),
+                   Text(
+                     'hanif@app.com ${widget.email}',
+                     style: TextStyle(fontSize: 15.0, color: HexColor(accentColor)),
+                   ),
+                 ],
               ),
-              const SizedBox(height: 20),
-              Card(
-                color: Colors.grey[200],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.0),
+              const SizedBox(height: 10),
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical:5),
+                decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(10)
                 ),
-                child: ListTile(
-                  title: Text(
-                    'Username: ${widget.username}',
-                    style: const TextStyle(fontSize: 18.0),
+                child: TextFormField(
+                  initialValue: _email,
+                  decoration: const InputDecoration(
+                      icon: Icon(
+                        CupertinoIcons.mail,
+                        color: Colors.grey,
+                        size: 22.0,
+                        semanticLabel: 'Text to announce in accessibility modes',
+                      ),
+                      hintText: 'Your email',
+                      hintStyle: TextStyle(color: Colors.grey),
+                      border: InputBorder.none
                   ),
+                  onChanged: (value) {
+                    _email = value;
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    return null;
+                  },
                 ),
               ),
-              const SizedBox(height: 10),
-              TextFormField(
-                initialValue: _email,
-                decoration: const InputDecoration(labelText: 'Email'),
-                onChanged: (value) {
-                  _email = value;
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter an email';
-                  }
-                  return null;
-                },
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical:5),
+                decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(10)
+                ),
+                child: TextFormField(
+                  decoration: const InputDecoration(
+                      icon: Icon(
+                        CupertinoIcons.phone,
+                        color: Colors.grey,
+                        size: 22.0,
+                        semanticLabel: 'Text to announce in accessibility modes',
+                      ),
+                      hintText: 'Phone Number',
+                      hintStyle: TextStyle(color: Colors.grey),
+                      border: InputBorder.none
+                  ),
+                  onChanged: (value) {
+                    // _password = value;
+                  },
+                  obscureText: true,
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty && value.length < 6) {
+                      return 'Enter Phone number';
+                    }
+                    return null;
+                  },
+                ),
               ),
-              const SizedBox(height: 10),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Password'),
-                onChanged: (value) {
-                  _password = value;
-                },
-                obscureText: true,
-                validator: (value) {
-                  if (value != null && value.isNotEmpty && value.length < 6) {
-                    return 'Password should be at least 6 characters';
-                  }
-                  return null;
-                },
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical:5),
+                decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(10)
+                ),
+                child: TextFormField(
+                  decoration: const InputDecoration(
+                      icon: Icon(
+                        CupertinoIcons.padlock,
+                        color: Colors.grey,
+                        size: 22.0,
+                        semanticLabel: 'Text to announce in accessibility modes',
+                      ),
+                      hintText: 'Gender',
+                      hintStyle: TextStyle(color: Colors.grey),
+                      border: InputBorder.none,
+                      suffixIcon: Icon(
+                        CupertinoIcons.chevron_down,
+                        color: Colors.grey,
+                        size: 22.0,
+                        semanticLabel: 'Text to announce in accessibility modes',
+                      ),
+                  ),
+                  onChanged: (value) {
+                    // _password = value;
+                  },
+                  obscureText: true,
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty && value.length < 6) {
+                      return 'Enter Phone number';
+                    }
+                    return null;
+                  },
+                ),
               ),
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical:5),
+                decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(10)
+                ),
+                child: TextFormField(
+                  decoration: const InputDecoration(
+                      icon: Icon(
+                        CupertinoIcons.padlock,
+                        color: Colors.grey,
+                        size: 22.0,
+                        semanticLabel: 'Text to announce in accessibility modes',
+                      ),
+                      hintText: 'Password',
+                      hintStyle: TextStyle(color: Colors.grey),
+                      border: InputBorder.none
+                  ),
+                  onChanged: (value) {
+                    _password = value;
+                  },
+                  obscureText: true,
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty && value.length < 6) {
+                      return 'Password should be at least 6 characters';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+
               const SizedBox(height: 20),
-              _isUpdating
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
+              ElevatedButton(
                 onPressed: _updateProfile,
                 style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: Colors.black,
+                  elevation: 4,
+                  minimumSize: const Size(350, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                  ),
+                  backgroundColor: Colors.blue,
                 ),
-                child: const Text('Update Profile'),
-              ),
-              const Spacer(),
-              ElevatedButton(
-                onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                  if (context.mounted) {
-                    Navigator.pushReplacementNamed(context, '/login');
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: Colors.black,
+                child: _isUpdating ?
+                LoadingAnimationWidget.fourRotatingDots(
+                  color: Colors.white,
+                  size: 40,
+                )
+                    :
+                const Text('Save Changes',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white)
                 ),
-                child: const Text('Logout'),
               ),
             ],
           ),
         ),
       ),
-    );
+    ));
   }
 }

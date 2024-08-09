@@ -229,7 +229,13 @@ class ProfileScreenState extends State<ProfileScreen> {
                       const Seperator(),
                       ProfileMenu(title: "Notification Settings", subtitle: "Edit your notifications", icon: CupertinoIcons.bell, onPress: () {}),
                       const Seperator(),
-                      ProfileMenu(title: "Sign Out", subtitle: "Sign out of the app", textColor: Colors.red, icon: CupertinoIcons.square_arrow_right, onPress: () {}),
+                      ProfileMenu(title: "Sign Out", subtitle: "Sign out of the app", textColor: Colors.red, icon: CupertinoIcons.square_arrow_right, onPress: () async {
+                        await FirebaseAuth.instance.signOut();
+                        if (context.mounted) {
+                          Navigator.pushReplacementNamed(context, '/login');
+                        }
+                      },
+                      ),
                     ],
                   ),
                 ),
