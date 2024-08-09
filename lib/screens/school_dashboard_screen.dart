@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class SchoolDashboardScreen extends StatefulWidget {
   final String username;
@@ -29,6 +30,36 @@ class SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
   void initState() {
     super.initState();
     _getActivitiesForDay(_focusedDay);
+    _setupFirebaseMessaging();
+  }
+
+  void _setupFirebaseMessaging() {
+    FirebaseMessaging.instance.subscribeToTopic('all');
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (message.notification != null) {
+        _showNotificationDialog(message.notification!.title, message.notification!.body);
+      }
+    });
+  }
+
+  void _showNotificationDialog(String? title, String? body) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title ?? 'Notification'),
+          content: Text(body ?? 'You have a new notification'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // Fetch activities from Firestore for a specific day

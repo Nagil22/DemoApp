@@ -49,46 +49,82 @@ class LoginScreenState extends State<LoginScreen> {
             String userType = userDoc.data()!['role'];
 
             // Navigate based on userType
-            if (userType == 'Admin') {
-              Navigator.pushReplacementNamed(
-                context,
-                '/admin-panel',
-                arguments: {
-                  'username': userDoc.data()!['username'],
-                  'userId': user.uid,
-                },
-              );
-            } else if (userType == 'School') {
-              Navigator.pushReplacementNamed(
-                context,
-                '/school-dashboard',
-                arguments: {
-                  'username': userDoc.data()!['username'],
-                  'userId': user.uid,
-                },
-              );
-            } else if (userType == 'Company') {
-              Navigator.pushReplacementNamed(
-                context,
-                '/company-dashboard',
-                arguments: {
-                  'username': userDoc.data()!['username'],
-                  'userId': user.uid,
-                },
-              );
-            } else if (userType == 'Party') {
-              Navigator.pushReplacementNamed(
-                context,
-                '/party-dashboard',
-                arguments: {
-                  'username': userDoc.data()!['username'],
-                  'userId': user.uid,
-                },
-              );
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Invalid role specified.')),
-              );
+            switch (userType) {
+              case 'SuperAdmin':
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/admin-panel',
+                  arguments: {
+                    'username': userDoc.data()!['username'],
+                    'userId': user.uid,
+                    'schoolId': userDoc.data()!['schoolId'],
+                  },
+                );
+                break;
+              case 'School':
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/school-dashboard',
+                  arguments: {
+                    'username': userDoc.data()!['username'],
+                    'userId': user.uid,
+                  },
+                );
+                break;
+              case 'Company':
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/company-dashboard',
+                  arguments: {
+                    'username': userDoc.data()!['username'],
+                    'userId': user.uid,
+                  },
+                );
+                break;
+              case 'Party':
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/party-dashboard',
+                  arguments: {
+                    'username': userDoc.data()!['username'],
+                    'userId': user.uid,
+                  },
+                );
+                break;
+              case 'Student':
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/student-dashboard',
+                  arguments: {
+                    'username': userDoc.data()!['username'],
+                    'userId': user.uid,
+                  },
+                );
+                break;
+              case 'Teacher':
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/teacher-dashboard',
+                  arguments: {
+                    'username': userDoc.data()!['username'],
+                    'userId': user.uid,
+                  },
+                );
+                break;
+              case 'Parent':
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/parent-dashboard',
+                  arguments: {
+                    'username': userDoc.data()!['username'],
+                    'userId': user.uid,
+                  },
+                );
+                break;
+              default:
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Invalid role specified.')),
+                );
             }
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -119,7 +155,6 @@ class LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      ///// appBar: AppBar(title: const Text('Login')),
       body: Padding(
         padding: const EdgeInsets.all(30.0),
         child: Form(
@@ -129,30 +164,25 @@ class LoginScreenState extends State<LoginScreen> {
             children: [
               const Spacer(),
               Text("Welcome Back 👋🏽",
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineMedium!
-                    .copyWith(fontWeight: FontWeight.w700)
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineMedium!
+                      .copyWith(fontWeight: FontWeight.w700)
               ),
               const Text("Login to your account",
                   style: TextStyle(fontWeight: FontWeight.normal)
               ),
-              // SvgPicture.asset(
-              //     "assets/illustrations/login.svg",
-              //     height: size.height * 0.2
-              // ),
               const SizedBox(height: 30),
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 20),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical:5),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(29)
+                    color: Colors.blue.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(29)
                 ),
                 child: TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
-                      // icon: Icon(Icons.person, color: ,),
                       hintText: 'Your email',
                       hintStyle: TextStyle(color: Colors.grey),
                       border: InputBorder.none
@@ -166,41 +196,41 @@ class LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               Container(
-                margin: const EdgeInsets.only(top: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical:5),
-                decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(29)
-                ),
-              child: TextFormField(
-                      controller: _passwordController,
-                      decoration:  InputDecoration(
-                          hintText: 'Your Password',
-                          hintStyle: const TextStyle(color: Colors.grey),
-                          border: InputBorder.none,
-                          suffixIcon: GestureDetector(
-                            onTap: _toggleVisibility,
-                            child: _passwordNotShown ?
-                            const Icon(Icons.visibility_off_outlined, color: Colors.grey)
-                                :
-                            const Icon(Icons.visibility_outlined, color: Colors.grey),
-                          )
-                      ),
-                      obscureText: _passwordNotShown,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your password';
-                        }
-                        return null;
-                      },
-                    )
+                  margin: const EdgeInsets.only(top: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical:5),
+                  decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(29)
+                  ),
+                  child: TextFormField(
+                    controller: _passwordController,
+                    decoration:  InputDecoration(
+                        hintText: 'Your Password',
+                        hintStyle: const TextStyle(color: Colors.grey),
+                        border: InputBorder.none,
+                        suffixIcon: GestureDetector(
+                          onTap: _toggleVisibility,
+                          child: _passwordNotShown ?
+                          const Icon(Icons.visibility_off_outlined, color: Colors.grey)
+                              :
+                          const Icon(Icons.visibility_outlined, color: Colors.grey),
+                        )
+                    ),
+                    obscureText: _passwordNotShown,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your password';
+                      }
+                      return null;
+                    },
+                  )
               ),
               Container(
-                margin: const EdgeInsets.only(bottom: 10),
+                  margin: const EdgeInsets.only(bottom: 10),
                   child: Row(
                     children: [
-                       const Spacer(),
-                        TextButton(
+                      const Spacer(),
+                      TextButton(
                           onPressed: () => Navigator.pushNamed(context, '/forgot'),
                           child: const Text(
                             'Forgot Password?',
@@ -221,34 +251,34 @@ class LoginScreenState extends State<LoginScreen> {
                   backgroundColor: Colors.blue,
                 ),
                 child: _loading ?
-                    LoadingAnimationWidget.fourRotatingDots(
-                      color: Colors.white,
-                      size: 40,
-                    )
-                        :
-                    const Text('LOGIN',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white)
-                    ),
+                LoadingAnimationWidget.fourRotatingDots(
+                  color: Colors.white,
+                  size: 40,
+                )
+                    :
+                const Text('LOGIN',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white)
+                ),
               ),
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  GestureDetector(
-                    child: const Text(
-                        'Do not have an account?',
-                        style: TextStyle(color: Colors.grey)),
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    GestureDetector(
+                      child: const Text(
+                          'Do not have an account?',
+                          style: TextStyle(color: Colors.grey)),
                     ),
-                  GestureDetector(
+                    GestureDetector(
                       onTap: (){},
                       child: TextButton(
-                          onPressed: () => Navigator.pushNamed(context, '/signup'),
-                          child: const Text(
-                              'Sign up',
-                              style: TextStyle(color: Colors.blue)),
-                        ),
-                  )
-                ]
+                        onPressed: () => Navigator.pushNamed(context, '/signup'),
+                        child: const Text(
+                            'Sign up',
+                            style: TextStyle(color: Colors.blue)),
+                      ),
+                    )
+                  ]
               ),
 
               const Spacer(),
