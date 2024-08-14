@@ -115,12 +115,12 @@ class ProfileScreenState extends State<ProfileScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'John Doe ${widget.username}',
+                                    '${widget.username}',
                                     style: const TextStyle(fontSize: 18.0, fontWeight: FontWeight.w600,),
                                     textAlign: TextAlign.left,
                                   ),
                                   Text(
-                                    'hanif@app.com ${widget.email}',
+                                    '${widget.email}',
                                     style: TextStyle(fontSize: 13.0, color: HexColor(accentColor)),
                                     textAlign: TextAlign.left,
                                   ),
@@ -197,7 +197,12 @@ class ProfileScreenState extends State<ProfileScreen> {
                               style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.w600, color: HexColor(accentColor))
                           ),
                       ),
-                      ProfileMenu(title: "Account", subtitle: "Detail your profile information", icon: CupertinoIcons.person, onPress: () {Navigator.pushNamed(context, '/account');}),
+                      ProfileMenu(title: "Account", subtitle: "Detail your profile information", icon: CupertinoIcons.person, onPress: () {Navigator.pushNamed(context, '/account', arguments: {
+                        'userId': widget.userId,
+                        'username': widget.username,
+                        'email': widget.email,
+                        'userType': widget.userType
+                      });}),
                       const Seperator(),
                       ProfileMenu(title: "Change Password", subtitle: "Change to your new password", icon: CupertinoIcons.lock, onPress: () {Navigator.pushNamed(context, '/change-password');}),
                     ],

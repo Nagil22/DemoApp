@@ -1,4 +1,6 @@
 import 'package:demo/screens/forgot_password.dart';
+import 'package:demo/screens/profile/account_page.dart';
+import 'package:demo/screens/profile/change_password.dart';
 import 'package:demo/screens/reset_password.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -92,6 +94,10 @@ class MyApp extends StatelessWidget {
           initialRoute: showOnBoarding ? '/onboarding' : '/login',
           routes: {
             '/admin-panel': (context) => const AdminPanelScreen(
+                userId: "",
+                username: "",
+                email: "",
+                schoolId: ""
             ),
             '/login': (context) => const LoginScreen(),
             '/onboarding': (context) => const OnBoardingScreen(),
@@ -140,7 +146,7 @@ class MyApp extends StatelessWidget {
               username: '', // Replace with actual username
               userId: '', // Replace with actual userId
             ),
-            '/calendar': (context) => const CalendarScreen(),
+            // '/calendar': (context) => const CalendarScreen(),
             '/payments': (context) => const PaymentsScreen(),
             '/notifications': (context) => const NotificationsScreen(),
           },

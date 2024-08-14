@@ -100,11 +100,11 @@ class AccountScreenState extends State<AccountScreen> {
                    ),
                    const SizedBox(height: 20),
                    Text(
-                     'Username: ${widget.username}',
+                     'Hanif${widget.username}',
                      style: const TextStyle(fontSize: 24.0, fontWeight: FontWeight.w600),
                    ),
                    Text(
-                     'hanif@app.com ${widget.email}',
+                     'hanif@app.com${widget.email}',
                      style: TextStyle(fontSize: 15.0, color: HexColor(accentColor)),
                    ),
                  ],
