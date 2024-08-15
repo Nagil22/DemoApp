@@ -1,3 +1,4 @@
+import 'package:demo/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:demo/school/admin_dashboard_screen.dart';
@@ -7,9 +8,21 @@ import 'package:demo/school/teacher_dashboard_screen.dart';
 import 'package:demo/screens/company_dashboard_screen.dart';
 import 'package:demo/screens/party_dashboard_screen.dart';
 import 'package:demo/screens/school_dashboard_screen.dart';
+import 'package:flutter/widgets.dart';
 
 class AdminPanelScreen extends StatefulWidget {
-  const AdminPanelScreen({super.key});
+  final String username;
+  final String email;
+  final String userId;
+  final String schoolId;
+
+  const AdminPanelScreen({
+    super.key,
+    required this.username,
+    required this.userId,
+    required this.email,
+    required this.schoolId,
+  });
 
   @override
   AdminPanelScreenState createState() => AdminPanelScreenState();
@@ -17,12 +30,31 @@ class AdminPanelScreen extends StatefulWidget {
 
 class AdminPanelScreenState extends State<AdminPanelScreen> {
   int _selectedIndex = 0;
+  String username = '';
+   String email = '';
+   String userId = '';
+   String schoolId = '';
+  // late userData
+
+  @override
+  void initState() {
+    super.initState();
+     username = widget.username;
+     email = widget.email;
+     userId = widget.userId;
+     schoolId = widget.schoolId;
+  }
 
   static const List<Widget> _widgetOptions = <Widget>[
     DashboardScreen(),
     NotificationsScreen(),
     AnalyticsScreen(),
     SchoolManagementScreen(),
+    ProfileScreen(
+        userId: "userId",
+        username: "Hanif",
+        email: "hanif@app.com",
+        userType: "userType")
   ];
 
   void _onItemTapped(int index) {
@@ -35,11 +67,13 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Super Admin Panel'),
-        backgroundColor: Colors.black,
+        title: Text('Super Admin Panel', style: Theme.of(context).textTheme.headlineMedium),
+        backgroundColor: Colors.white,
       ),
+      backgroundColor: Colors.white,
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.blue,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
@@ -57,9 +91,14 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
             icon: Icon(Icons.school),
             label: 'Schools',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
+          ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.amber[800],
+
+        selectedItemColor: Colors.blue[800],
         unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
       ),
@@ -78,64 +117,80 @@ class DashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Ready to work',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
             const SizedBox(height: 20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildQuickAccessCard(
-                  context,
-                  icon: Icons.school,
-                  title: 'Schools',
-                  onTap: () => _navigateToDashboard(context, const SchoolDashboardScreen(username: '', userId: '')),
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Expanded(
+                  child: _buildQuickAccessCard(
+                    context,
+                    icon: Icons.school,
+                    title: 'Schools',
+                    onTap: () => _navigateToDashboard(context, const SchoolDashboardScreen(username: '', userId: '')),
+                  )
                 ),
-                _buildQuickAccessCard(
+                Expanded(
+                  child: _buildQuickAccessCard(
                   context,
                   icon: Icons.business,
                   title: 'Companies',
                   onTap: () => _navigateToDashboard(context, const CompanyDashboardScreen(username: '', userId: '')),
-                ),
-                _buildQuickAccessCard(
-                  context,
-                  icon: Icons.people,
-                  title: 'Parents',
-                  onTap: () => _navigateToDashboard(context, const ParentDashboardScreen(username: '', userId: '')),
+                )
                 ),
               ],
             ),
             const SizedBox(height: 20),
+
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildQuickAccessCard(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Expanded(
+                  child: _buildQuickAccessCard(
+                  context,
+                  icon: Icons.people,
+                  title: 'Parents',
+                  onTap: () => _navigateToDashboard(context, const ParentDashboardScreen(username: '', userId: '')),
+                )
+                ),
+                Expanded(
+                  child: _buildQuickAccessCard(
                   context,
                   icon: Icons.admin_panel_settings,
                   title: 'School Admin',
                   onTap: () => _navigateToDashboard(context, const AdminDashboardScreen(username: '', userId: '', schoolId: '')),
+                )
                 ),
-                _buildQuickAccessCard(
-                  context,
-                  icon: Icons.gavel,
-                  title: 'Party',
-                  onTap: () => _navigateToDashboard(context, const PoliticalPartyDashboardScreen(username: '', userId: '')),
+              ]
+            ),
+
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Expanded(
+                  child: _buildQuickAccessCard(
+                    context,
+                    icon: Icons.gavel,
+                    title: 'Party',
+                    onTap: () => _navigateToDashboard(context, const PoliticalPartyDashboardScreen(username: '', userId: '')),
+                  )
                 ),
-                _buildQuickAccessCard(
+                Expanded(
+                  child: _buildQuickAccessCard(
                   context,
                   icon: Icons.analytics,
                   title: 'Analytics',
                   onTap: () {
                     // Navigate to analytics dashboard
                   },
+                )
                 ),
               ],
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 50),
             Text(
               'Latest activity',
-              style: Theme.of(context).textTheme.headlineLarge,
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 10),
             _buildActivityList(),
@@ -153,14 +208,15 @@ class DashboardScreen extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Card(
-        elevation: 2,
+        elevation: 7,
+        color: Colors.blue,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              Icon(icon, size: 40),
+              Icon(icon, size: 40, color: Colors.white,),
               const SizedBox(height: 8),
-              Text(title),
+              Text(title, style: const TextStyle(fontSize: 18, color: Colors.white)),
             ],
           ),
         ),
@@ -173,7 +229,21 @@ class DashboardScreen extends StatelessWidget {
       stream: FirebaseFirestore.instance.collection('activity_log').orderBy('timestamp', descending: true).limit(5).snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          // return const Center(child: CircularProgressIndicator());
+          return const Row(
+            // margin: const EdgeInsets.symmetric(vertical: 16.0),
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(height: 100),
+              Icon(Icons.no_accounts_outlined, size: 40, color: Colors.grey),
+              SizedBox(width: 20),
+               Text(
+              'No activity to show now',
+              style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.w400, color: Colors.grey),
+              ),
+            ]
+          );
         }
         var activities = snapshot.data!.docs;
         return ListView.builder(

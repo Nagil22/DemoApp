@@ -56,6 +56,7 @@ class LoginScreenState extends State<LoginScreen> {
                   '/admin-panel',
                   arguments: {
                     'username': userDoc.data()!['username'],
+                    'email': user.email,
                     'userId': user.uid,
                     'schoolId': userDoc.data()!['schoolId'],
                   },
