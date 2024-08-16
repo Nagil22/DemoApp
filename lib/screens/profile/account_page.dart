@@ -3,8 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:hexcolor/hexcolor.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
+
 
 class AccountScreen extends StatefulWidget {
   final String userId;
@@ -82,7 +82,7 @@ class AccountScreenState extends State<AccountScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          backgroundColor:  HexColor(profileBgColor)
+          backgroundColor:  HexColor.fromHex(profileBgColor)
       ),
       body: SingleChildScrollView(
         child: Container(
@@ -105,7 +105,7 @@ class AccountScreenState extends State<AccountScreen> {
                    ),
                    Text(
                      'hanif@app.com${widget.email}',
-                     style: TextStyle(fontSize: 15.0, color: HexColor(accentColor)),
+                     style: TextStyle(fontSize: 15.0, color: HexColor.fromHex(accentColor)),
                    ),
                  ],
               ),

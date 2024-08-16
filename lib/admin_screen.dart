@@ -67,13 +67,14 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Super Admin Panel', style: Theme.of(context).textTheme.headlineMedium),
+        centerTitle: true,
+        title: const Text('Super admin panel', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20)),
         backgroundColor: Colors.white,
       ),
       backgroundColor: Colors.white,
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.blue,
+
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
@@ -97,7 +98,7 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
           ),
         ],
         currentIndex: _selectedIndex,
-
+        backgroundColor: Colors.blue,
         selectedItemColor: Colors.blue[800],
         unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
