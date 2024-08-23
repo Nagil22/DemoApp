@@ -91,7 +91,11 @@ class MyApp extends StatelessWidget {
           ),
           darkTheme: ThemeData.dark(),
           themeMode: themeProvider.themeMode,
-          initialRoute: showOnBoarding ? '/onboarding' : '/login',
+          initialRoute:
+                  FirebaseAuth.instance.currentUser == null ?
+                        showOnBoarding ? '/onboarding' : '/login'
+                            :
+                  '/admin-panel',
           routes: {
             '/admin-panel': (context) => const AdminPanelScreen(
                 userId: "",

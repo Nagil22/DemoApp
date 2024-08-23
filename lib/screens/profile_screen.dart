@@ -1,10 +1,10 @@
+import 'package:demo/screens/profile/account_page.dart';
 import 'package:demo/screens/profile/profile_menus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/widgets.dart';
-import 'package:hexcolor/hexcolor.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -29,12 +29,35 @@ class ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   String _email = '';
   String _password = '';
+  String _username = '';
+  String _userType = '';
   bool _isUpdating = false;
 
   @override
   void initState() {
     super.initState();
     _email = widget.email;
+    final User? user = _auth.currentUser;
+
+    if( user != null){
+      // _username = user.displayName!;
+      _email = user.email!;
+      // getUser(user);
+      _userType = 'superadmin';
+    }
+
+  }
+
+  void getUser(user) async {
+    DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+        .instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    if (userDoc.exists && userDoc.data()!.containsKey('role')) {
+      _userType = userDoc.data()!['role'];
+    }
   }
 
   void _updateProfile() async {
@@ -78,13 +101,119 @@ class ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  Widget _buildTextSectionBasedOnRole(role) {
+    switch (_userType) {
+    case 'superadmin':
+      return const Text(
+      'Super Admin',
+      style: TextStyle(fontSize: 15.0, fontWeight: FontWeight.w600, color: Colors.white),
+      );
+      case 'school':
+        return const Text(
+          'School International Academy',
+          style: TextStyle(fontSize: 15.0, fontWeight: FontWeight.w600, color: Colors.white),
+        );
+      case 'teacher':
+        return const Text(
+          'Teacher at School International Academy',
+          style: TextStyle(fontSize: 15.0, fontWeight: FontWeight.w600, color: Colors.white),
+        );
+      case 'student':
+        return const Text(
+          'Year 12 at School International Academy',
+          style: TextStyle(fontSize: 15.0, fontWeight: FontWeight.w600, color: Colors.white),
+        );
+    default:
+      return const Text(
+      'Year 12 at School International Academy',
+      style: TextStyle(fontSize: 15.0, fontWeight: FontWeight.w600, color: Colors.white),
+      );
+    }
+  }
+
+  Widget _buildPersonalSectionBasedOnRole(role) {
+    switch (_userType) {
+      case 'superadmin':
+            return Column(
+              children: [
+                    const Seperator(),
+                    ProfileMenu(title: "Edit admins", subtitle: "Edit all admins", icon: CupertinoIcons.person_2, onPress: () {Navigator.pushNamed(context, '/change-password');})
+              ]);
+      case 'teacher':
+        return Column(
+            children: [
+              const Seperator(),
+              ProfileMenu(title: "Edit class details", subtitle: "Edit your school details", icon: CupertinoIcons.book, onPress: () {Navigator.pushNamed(context, '/change-password');})
+            ]);
+
+
+      case 'school':
+        return Column(
+            children: [
+              const Seperator(),
+              ProfileMenu(title: "Edit school details", subtitle: "Edit school details", icon: CupertinoIcons.building_2_fill, onPress: () {Navigator.pushNamed(context, '/change-password');})
+            ]);
+
+      case 'parent':
+        return Column(
+            children: [
+              const Seperator(),
+              ProfileMenu(title: "Manage Children", subtitle: "Manage children accounts", icon: CupertinoIcons.person_3, onPress: () {Navigator.pushNamed(context, '/change-password');})
+            ]);
+      default:
+      return Column(
+        children: [
+          ProfileMenu(title: "Change Password", subtitle: "Change to your new password", icon: CupertinoIcons.lock, onPress: () {Navigator.pushNamed(context, '/change-password');})
+        ]);
+    }
+  }
+
+  Widget _buildOtherSectionBasedOnRole(role) {
+    switch (_userType) {
+      case 'superadmin':
+        return Column(
+            children: [
+              const Seperator(),
+              ProfileMenu(title: "Notification Settings", subtitle: "Edit your notifications", icon: CupertinoIcons.bell, onPress: () {}),
+            ]);
+
+      case 'student':
+        return Column(
+            children: [
+              ProfileMenu(title: "Attendance", subtitle: "Manage your attendance", icon: CupertinoIcons.doc_person, onPress: () {}),
+              const Seperator(),
+              ProfileMenu(title: "Notification Settings", subtitle: "Edit your notifications", icon: CupertinoIcons.bell, onPress: () {}),
+            ]);
+
+      case 'parent':
+        return Column(
+            children: [
+              ProfileMenu(title: "Attendance", subtitle: "See children attendance", icon: CupertinoIcons.doc_person, onPress: () {}),
+              const Seperator(),
+              ProfileMenu(title: "Manage School fees", subtitle: "See history of paid school fees", icon: CupertinoIcons.doc_on_doc, onPress: () {Navigator.pushNamed(context, '/change-password');}),
+              const Seperator(),
+              ProfileMenu(title: "Manage Report cards", subtitle: "Manage report cards", icon: CupertinoIcons.doc_on_doc, onPress: () {Navigator.pushNamed(context, '/change-password');})
+            ]);
+
+      case 'school':
+        return Column(
+            children: [
+              ProfileMenu(title: "School fees payments", subtitle: "Manage payment methods", icon: CupertinoIcons.creditcard, onPress: () {}),
+              const Seperator(),
+              ProfileMenu(title: "See all students", subtitle: "Manage all students details", icon: CupertinoIcons.person_3, onPress: () {Navigator.pushNamed(context, '/change-password');})
+            ]);
+      default:
+        return Column(
+            children: [
+              ProfileMenu(title: "Attendance", subtitle: "Edit your attendance", icon: CupertinoIcons.doc_person, onPress: () {}),
+            ]);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor:  Colors.transparent
-      ),
-      backgroundColor: HexColor(profileBgColor),
+      backgroundColor: HexColor.fromHex(profileBgColor),
       body: SingleChildScrollView(
         child: Container(
           padding: const EdgeInsets.all(16.0),
@@ -101,13 +230,18 @@ class ProfileScreenState extends State<ProfileScreen> {
                   child:  Column (
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
+                        const SizedBox(height: 20),
                         Row(
                             children: [
                               const SizedBox(width: 20),
-                              const CircleAvatar(
+                               CircleAvatar(
                                 radius: 25,
-                                backgroundColor: Colors.black,
-                                child: Icon(Icons.person, size: 25, color: Colors.white),
+                                backgroundColor: Colors.white,
+                                child:  Image.asset(
+                                    "assets/illustrations/profile.png",
+                                    height:100
+                                ),
+                                // child: Icon(Icons.person, size: 25, color: Colors.white),
                               ),
                               const SizedBox(width: 20),
                               Column(
@@ -115,13 +249,13 @@ class ProfileScreenState extends State<ProfileScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${widget.username}',
+                                    '${_userType}',
                                     style: const TextStyle(fontSize: 18.0, fontWeight: FontWeight.w600,),
                                     textAlign: TextAlign.left,
                                   ),
                                   Text(
-                                    '${widget.email}',
-                                    style: TextStyle(fontSize: 13.0, color: HexColor(accentColor)),
+                                    '${_email}',
+                                    style: TextStyle(fontSize: 13.0, color: HexColor.fromHex(accentColor)),
                                     textAlign: TextAlign.left,
                                   ),
                                 ],
@@ -129,42 +263,47 @@ class ProfileScreenState extends State<ProfileScreen> {
                               const Spacer(),
                             ],
                         ),
-                       const SizedBox(height: 20),
+                       const SizedBox(height: 10),
                        SizedBox(
                          width: 400,
                          height: 80,
                          child:  DecoratedBox(
                              decoration:  BoxDecoration(
-                               color: Colors.blue,
+                               // color: Colors.blue,
+                               gradient: const LinearGradient(
+                                 begin: Alignment.topLeft,
+                                 end: Alignment.bottomRight,
+                                 colors: [Colors.blue, Colors.blueAccent],
+                               ),
                                borderRadius: BorderRadius.circular(20),
                              ),
-                             child: const Column(
+                             child:  Column(
                                mainAxisAlignment: MainAxisAlignment.center,
                                crossAxisAlignment: CrossAxisAlignment.start,
                                children: [
                                  Row(
                                    // mainAxisAlignment: MainAxisAlignment.center,
                                    children: [
-                                     SizedBox(width: 20),
-                                     Icon(
+                                     const SizedBox(width: 20),
+                                     const Icon(
                                        CupertinoIcons.building_2_fill,
                                        color: Colors.white,
                                        size: 20.0,
                                        semanticLabel: 'Text to announce in accessibility modes',
                                      ),
-                                     SizedBox(width: 20),
-                                     Text(
-                                       'Year 12 at Example Academy',
-                                       style: TextStyle(fontSize: 15.0, fontWeight: FontWeight.w600, color: Colors.white),
+                                     const SizedBox(width: 20),
+                                     Flexible(
+                                       child:
+                                       _buildTextSectionBasedOnRole(_userType),
                                      ),
-                                     Spacer(),
-                                     Icon(
+                                     const Spacer(),
+                                     const Icon(
                                        CupertinoIcons.chevron_forward,
                                        color: Colors.white,
                                        size: 18.0,
                                        semanticLabel: 'Forward button to account',
                                      ),
-                                     SizedBox(width: 20),
+                                     const SizedBox(width: 20),
                                    ],
                                  )
 
@@ -176,12 +315,12 @@ class ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 50),
+              const SizedBox(height: 40),
 
               // Personal Section
-              SizedBox(
+              Container(
               width: 400,
-              height: 220,
+              // height: 220,
               child:  DecoratedBox(
               decoration:  BoxDecoration(
                 color: Colors.white,
@@ -194,27 +333,28 @@ class ProfileScreenState extends State<ProfileScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                           child: Text(
                               'Personal',
-                              style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.w600, color: HexColor(accentColor))
+                              style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.w600, color: HexColor.fromHex(accentColor))
                           ),
                       ),
                       ProfileMenu(title: "Account", subtitle: "Detail your profile information", icon: CupertinoIcons.person, onPress: () {Navigator.pushNamed(context, '/account', arguments: {
                         'userId': widget.userId,
-                        'username': widget.username,
-                        'email': widget.email,
-                        'userType': widget.userType
+                        'username': _username,
+                        'email': _email,
+                        'userType': _userType
                       });}),
                       const Seperator(),
                       ProfileMenu(title: "Change Password", subtitle: "Change to your new password", icon: CupertinoIcons.lock, onPress: () {Navigator.pushNamed(context, '/change-password');}),
+                      _buildPersonalSectionBasedOnRole(_userType),
+                      const SizedBox(height: 10),
                     ],
                 ),
               ),
               ),
-              const SizedBox(height: 50),
+              const SizedBox(height: 40),
 
               // Other Section
-              SizedBox(
+              Container(
                 width: 400,
-                height: 280,
                 child:  DecoratedBox(
                   decoration:  BoxDecoration(
                     color: Colors.white,
@@ -227,10 +367,10 @@ class ProfileScreenState extends State<ProfileScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                         child: Text(
                             'Other',
-                            style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.w600, color: HexColor(accentColor))
+                            style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.w600, color: HexColor.fromHex(accentColor))
                         ),
                       ),
-                      ProfileMenu(title: "Attendance", subtitle: "Edit your attendance", icon: CupertinoIcons.doc_person, onPress: () {}),
+                      _buildOtherSectionBasedOnRole(_userType),
                       const Seperator(),
                       ProfileMenu(title: "Notification Settings", subtitle: "Edit your notifications", icon: CupertinoIcons.bell, onPress: () {}),
                       const Seperator(),
@@ -241,6 +381,7 @@ class ProfileScreenState extends State<ProfileScreen> {
                         }
                       },
                       ),
+                      const SizedBox(height: 10),
                     ],
                   ),
                 ),
@@ -281,6 +422,7 @@ class Seperator extends StatelessWidget {
 
   }
 }
+
 
 class ProfileMenu extends StatelessWidget {
   const ProfileMenu({
