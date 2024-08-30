@@ -16,68 +16,80 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Future<Widget> handleAuthState(BuildContext context, dynamic username, dynamic userId) async {
+  Future<Widget> handleAuthState(BuildContext context, String? username, String? userId) async {
     User? user = _auth.currentUser;
     if (user != null) {
-      DocumentSnapshot userData = await _firestore.collection('users').doc(user.uid).get();
+      try {
+        DocumentSnapshot userData = await _firestore.collection('users').doc(user.uid).get();
 
-      if (userData.exists) {
-        String role = userData['role'];
-        String? schoolId = userData.data()?.containsKey('schoolId') ? userData['schoolId'] : null;
+        if (userData.exists) {
+          Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
+          String role = data['role'] ?? '';
+          String? schoolId = data.containsKey('schoolId') ? data['schoolId'] : null;
 
-        switch (role) {
-          case 'SuperAdmin':
-            return AdminPanelScreen(
-              userId: user.uid,
-              username: userData['name'],
-              email: user.email!,
-            );
-          case 'admin':
-            return AdminDashboardScreen(
-              username: userData['name'],
-              userId: user.uid,
-              schoolId: schoolId ?? '', // Provide a fallback if schoolId is null
-              schoolName: '',
-            );
-          case 'teacher':
-            return TeacherDashboardScreen(
-              userId: user.uid,
-              schoolId: schoolId!,
-              username: '',
-              schoolName: '',
-            );
-          case 'parent':
-            return ParentDashboardScreen(
-              userId: user.uid,
-              schoolId: schoolId!,
-              username: '',
-              schoolName: '',
-            );
-          case 'student':
-            return StudentDashboardScreen(
-              userId: user.uid,
-              schoolId: schoolId!,
-              username: '',
-              schoolName: '',
-            );
-          case 'company-admin':
-            return CompanyDashboardScreen(
-              username: username,
-              userId: userId,
-            );
-          case 'party-admin':
-            return PoliticalPartyDashboardScreen(
-              username: username,
-              userId: userId,
-            );
-          default:
-            return const LoginScreen();
+          print('User role: $role'); // Debugging line
+
+          switch (role.toLowerCase()) {
+            case 'superadmin':
+              return AdminPanelScreen(
+                userId: user.uid,
+                username: data['name'] ?? '',
+                email: user.email ?? '',
+              );
+            case 'admin':
+              return AdminDashboardScreen(
+                username: data['name'] ?? '',
+                userId: user.uid,
+                schoolId: schoolId ?? '',
+                schoolName: '',
+              );
+            case 'teacher':
+              return TeacherDashboardScreen(
+                userId: user.uid,
+                schoolId: schoolId ?? '',
+                username: data['name'] ?? '',
+                schoolName: '',
+              );
+            case 'parent':
+              return ParentDashboardScreen(
+                userId: user.uid,
+                schoolId: schoolId ?? '',
+                username: data['name'] ?? '',
+                schoolName: '',
+              );
+            case 'student':
+              return StudentDashboardScreen(
+                userId: user.uid,
+                schoolId: schoolId ?? '',
+                username: data['name'] ?? '',
+                schoolName: '',
+              );
+            case 'company-admin':
+              return CompanyDashboardScreen(
+                username: username ?? '',
+                userId: userId ?? '',
+              );
+            case 'party-admin':
+              return PoliticalPartyDashboardScreen(
+                username: username ?? '',
+                userId: userId ?? '',
+              );
+            default:
+              print('Unknown role: $role'); // Debugging line
+              return const LoginScreen();
+          }
+        } else {
+          print('User document does not exist'); // Debugging line
+          return const LoginScreen();
         }
+      } catch (e) {
+        print('Error in handleAuthState: $e'); // Debugging line
+        return const LoginScreen();
       }
     }
+    print('User is null'); // Debugging line
     return const LoginScreen();
   }
-
 
   Future<void> createUser({
     required String email,
@@ -109,7 +121,6 @@ class AuthService {
 }
 
 extension on Object? {
-  containsKey(String s) {}
 }
 
 class LoginScreen extends StatefulWidget {
@@ -146,32 +157,31 @@ class LoginScreenState extends State<LoginScreen> {
 
         User? user = userCredential.user;
         if (user != null) {
-          DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-
-          if (userDoc.exists && userDoc.data()!.containsKey('role')) {
-            String username = userDoc.data()!['name'] ?? '';
-            String userId = user.uid;
-
-            // Use AuthService to handle navigation based on role
-            AuthService authService = AuthService();
-            Widget destinationScreen = await authService.handleAuthState(
-                context,
-                username,
-                userId
-            );
-            Navigator.pushReplacement(
+          AuthService authService = AuthService();
+          Widget destinationScreen = await authService.handleAuthState(
               context,
-              MaterialPageRoute(builder: (context) => destinationScreen),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Failed to fetch user role.')),
-            );
-          }
+              user.displayName,
+              user.uid
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => destinationScreen),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to sign in: User is null')),
+          );
         }
+      } on FirebaseAuthException catch (e) {
+        String errorMessage = 'An error occurred during sign in';
+        if (e.code == 'user-not-found') {
+          errorMessage = 'No user found for that email.';
+        } else if (e.code == 'wrong-password') {
+          errorMessage = 'Wrong password provided for that user.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to sign in: $e')),

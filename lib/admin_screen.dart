@@ -1,27 +1,23 @@
+import 'package:demo/dash_screens/school_management_screen.dart';
 import 'package:demo/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:demo/school/admin_dashboard_screen.dart';
 import 'package:demo/school/parent_dashboard_screen.dart';
-import 'package:demo/school/student_dashboard_screen.dart';
-import 'package:demo/school/teacher_dashboard_screen.dart';
 import 'package:demo/screens/company_dashboard_screen.dart';
 import 'package:demo/screens/party_dashboard_screen.dart';
 import 'package:demo/screens/school_dashboard_screen.dart';
-import 'package:flutter/widgets.dart';
 
 class AdminPanelScreen extends StatefulWidget {
   final String username;
   final String email;
   final String userId;
-  final String schoolId;
 
   const AdminPanelScreen({
     super.key,
     required this.username,
     required this.userId,
     required this.email,
-    required this.schoolId,
   });
 
   @override
@@ -30,31 +26,40 @@ class AdminPanelScreen extends StatefulWidget {
 
 class AdminPanelScreenState extends State<AdminPanelScreen> {
   int _selectedIndex = 0;
-  String username = '';
-   String email = '';
-   String userId = '';
-   String schoolId = '';
-  // late userData
+  late String username;
+  late String email;
 
   @override
   void initState() {
     super.initState();
-     username = widget.username;
-     email = widget.email;
-     userId = widget.userId;
-     schoolId = widget.schoolId;
+    username = widget.username;
+    email = widget.email;
+    _fetchUserData();
   }
 
-  static const List<Widget> _widgetOptions = <Widget>[
-    DashboardScreen(),
-    NotificationsScreen(),
-    AnalyticsScreen(),
-    SchoolManagementScreen(),
+  Future<void> _fetchUserData() async {
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .get();
+
+    setState(() {
+      username = userDoc['username'];
+      email = userDoc['email'];
+    });
+  }
+
+  List<Widget> get _widgetOptions => <Widget>[
+    const DashboardScreen(userId: '',),
+    const NotificationsScreen(),
+    const AnalyticsScreen(),
+    const AdminCreationScreen(),
     ProfileScreen(
-        userId: "userId",
-        username: "Hanif",
-        email: "hanif@app.com",
-        userType: "userType")
+        userId: widget.userId,
+        username: username,
+        email: email,
+        userType: "Super Admin"),
+    const AdminManagementScreen(), // Integrating the AdminManagementScreen here
   ];
 
   void _onItemTapped(int index) {
@@ -71,11 +76,9 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
         title: const Text('Super admin panel', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20)),
         backgroundColor: Colors.white,
       ),
-      backgroundColor: Colors.white,
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
-
-        items: const <BottomNavigationBarItem>[
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
             label: 'Dashboard',
@@ -89,13 +92,14 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
             label: 'Analytics',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.school),
-            label: 'Schools',
+            icon: Icon(Icons.admin_panel_settings),
+            label: 'Admin Management',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
+            icon: Icon(Icons.account_circle),
             label: 'Profile',
           ),
+
         ],
         currentIndex: _selectedIndex,
         backgroundColor: Colors.blue,
@@ -108,7 +112,7 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
 }
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  const DashboardScreen({super.key, required String userId});
 
   @override
   Widget build(BuildContext context) {
@@ -127,43 +131,47 @@ class DashboardScreen extends StatelessWidget {
                     context,
                     icon: Icons.school,
                     title: 'Schools',
-                    onTap: () => _navigateToDashboard(context, const SchoolDashboardScreen(username: '', userId: '')),
-                  )
+                    onTap: () => _navigateToDashboard(context,
+                        const SchoolDashboardScreen(username: '', userId: '', schoolName: '', schoolId: '',)),
+                  ),
                 ),
                 Expanded(
                   child: _buildQuickAccessCard(
-                  context,
-                  icon: Icons.business,
-                  title: 'Companies',
-                  onTap: () => _navigateToDashboard(context, const CompanyDashboardScreen(username: '', userId: '')),
-                )
+                    context,
+                    icon: Icons.business,
+                    title: 'Companies',
+                    onTap: () => _navigateToDashboard(context,
+                        const CompanyDashboardScreen(username: '', userId: '')),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 Expanded(
                   child: _buildQuickAccessCard(
-                  context,
-                  icon: Icons.people,
-                  title: 'Parents',
-                  onTap: () => _navigateToDashboard(context, const ParentDashboardScreen(username: '', userId: '')),
-                )
+                    context,
+                    icon: Icons.people,
+                    title: 'Parents',
+                    onTap: () => _navigateToDashboard(context,
+                        const ParentDashboardScreen(username: '', userId: '', schoolId: '', schoolName: '',)),
+                  ),
                 ),
                 Expanded(
                   child: _buildQuickAccessCard(
-                  context,
-                  icon: Icons.admin_panel_settings,
-                  title: 'School Admin',
-                  onTap: () => _navigateToDashboard(context, const AdminDashboardScreen(username: '', userId: '', schoolId: '')),
-                )
+                    context,
+                    icon: Icons.admin_panel_settings,
+                    title: 'School Admin',
+                    onTap: () => _navigateToDashboard(
+                        context,
+                        const AdminDashboardScreen(
+                          username: '', userId: '', schoolId: '', schoolName: '',)),
+                  ),
                 ),
-              ]
+              ],
             ),
-
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -173,18 +181,21 @@ class DashboardScreen extends StatelessWidget {
                     context,
                     icon: Icons.gavel,
                     title: 'Party',
-                    onTap: () => _navigateToDashboard(context, const PoliticalPartyDashboardScreen(username: '', userId: '')),
-                  )
+                    onTap: () => _navigateToDashboard(
+                        context,
+                        const PoliticalPartyDashboardScreen(
+                            username: '', userId: '')),
+                  ),
                 ),
                 Expanded(
                   child: _buildQuickAccessCard(
-                  context,
-                  icon: Icons.analytics,
-                  title: 'Analytics',
-                  onTap: () {
-                    // Navigate to analytics dashboard
-                  },
-                )
+                    context,
+                    icon: Icons.analytics,
+                    title: 'Analytics',
+                    onTap: () {
+                      // Navigate to analytics dashboard
+                    },
+                  ),
                 ),
               ],
             ),
@@ -201,11 +212,12 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickAccessCard(BuildContext context, {
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildQuickAccessCard(
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        required VoidCallback onTap,
+      }) {
     return InkWell(
       onTap: onTap,
       child: Card(
@@ -215,9 +227,14 @@ class DashboardScreen extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              Icon(icon, size: 40, color: Colors.white,),
+              Icon(
+                icon,
+                size: 40,
+                color: Colors.white,
+              ),
               const SizedBox(height: 8),
-              Text(title, style: const TextStyle(fontSize: 18, color: Colors.white)),
+              Text(title,
+                  style: const TextStyle(fontSize: 18, color: Colors.white)),
             ],
           ),
         ),
@@ -227,23 +244,28 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildActivityList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('activity_log').orderBy('timestamp', descending: true).limit(5).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('activity_log')
+          .orderBy('timestamp', descending: true)
+          .limit(5)
+          .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          // return const Center(child: CircularProgressIndicator());
           return const Row(
-            // margin: const EdgeInsets.symmetric(vertical: 16.0),
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(height: 100),
               Icon(Icons.no_accounts_outlined, size: 40, color: Colors.grey),
               SizedBox(width: 20),
-               Text(
-              'No activity to show now',
-              style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.w400, color: Colors.grey),
+              Text(
+                'No activity to show now',
+                style: TextStyle(
+                    fontSize: 16.0,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.grey),
               ),
-            ]
+            ],
           );
         }
         var activities = snapshot.data!.docs;
@@ -274,34 +296,155 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-// You'll need to implement these new screens:
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Implement analytics screen
-    return const Center(child: Text('Analytics Screen'));
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Analytics',
+            style: Theme.of(context).textTheme.headlineMedium),
+      ),
+      body: const Center(
+        child: Text('Analytics Screen'),
+      ),
+    );
   }
 }
 
-class SchoolManagementScreen extends StatelessWidget {
-  const SchoolManagementScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    // Implement school management screen
-    return const Center(child: Text('School Management Screen'));
-  }
-}
-
-// Modify the NotificationsScreen to fit super admin needs
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Implement super admin notification screen
-    return const Center(child: Text('Super Admin Notifications'));
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Notifications',
+            style: Theme.of(context).textTheme.headlineMedium),
+      ),
+      body: const Center(
+        child: Text('Super Admin Notifications'),
+      ),
+    );
+  }
+}
+
+class AdminManagementScreen extends StatefulWidget {
+  const AdminManagementScreen({super.key});
+
+  @override
+  AdminManagementScreenState createState() => AdminManagementScreenState();
+}
+
+class AdminManagementScreenState extends State<AdminManagementScreen> {
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  String _role = 'Super Admin'; // Default role is Super Admin
+  String _schoolId = ''; // Default is empty for Super Admins
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Admin Management',
+            style: Theme.of(context).textTheme.headlineMedium),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            DropdownButton<String>(
+              value: _role,
+              onChanged: (String? newRole) {
+                setState(() {
+                  _role = newRole!;
+                  _schoolId = ''; // Reset schoolId when role changes
+                });
+              },
+              items: <String>[
+                'Super Admin',
+                'School Admin',
+                'Company Admin',
+                'Party Admin'
+              ].map<DropdownMenuItem<String>>((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+            ),
+            if (_role == 'School Admin')
+              TextField(
+                controller: TextEditingController(text: _schoolId),
+                decoration: const InputDecoration(
+                  labelText: 'School ID',
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _schoolId = value;
+                  });
+                },
+              ),
+            TextField(
+              controller: _usernameController,
+              decoration: const InputDecoration(labelText: 'Username'),
+            ),
+            TextField(
+              controller: _emailController,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            TextField(
+              controller: _passwordController,
+              decoration: const InputDecoration(labelText: 'Password'),
+              obscureText: true,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                _createAdmin();
+              },
+              child: const Text('Create Admin'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createAdmin() async {
+    try {
+      DocumentReference userRef = await FirebaseFirestore.instance
+          .collection('users')
+          .add({
+        'username': _usernameController.text,
+        'email': _emailController.text,
+        'role': _role,
+        if (_role == 'School Admin') 'schoolId': _schoolId,
+      });
+
+      if (_role == 'School Admin') {
+        await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(_schoolId)
+            .collection('admins')
+            .doc(userRef.id)
+            .set({
+          'username': _usernameController.text,
+          'email': _emailController.text,
+        });
+      }
+    } catch (error) {
+      // Handle error
+    }
   }
 }
