@@ -1,4 +1,3 @@
-import 'package:demo/admin_screen.dart';
 import 'package:flutter/material.dart';
 import '../screens/profile_screen.dart';
 import '../screens/settings_screen.dart';
@@ -25,7 +24,7 @@ class NavItems extends ChangeNotifier {
     NavItem(
       id: 1,
       icon: Icons.home,
-      destination: const SchoolDashboardScreen(username: '', userId: '',),
+      destination: const SchoolDashboardScreen(username: '', userId: '', schoolId: '', schoolName: '',),
     ),
     NavItem(
       id: 2,

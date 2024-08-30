@@ -11,7 +11,7 @@ class StudentDashboardScreen extends StatefulWidget {
   const StudentDashboardScreen({
     super.key,
     required this.username,
-    required this.userId,
+    required this.userId, required String schoolId, required String schoolName,
   });
 
   @override

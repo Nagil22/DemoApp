@@ -10,7 +10,7 @@ class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({
     super.key,
     required this.username,
-    required this.userId,
+    required this.userId, required String schoolId, required String schoolName,
   });
 
   @override

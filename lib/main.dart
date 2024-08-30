@@ -2,6 +2,7 @@ import 'package:demo/screens/forgot_password.dart';
 import 'package:demo/screens/profile/account_page.dart';
 import 'package:demo/screens/profile/change_password.dart';
 import 'package:demo/screens/reset_password.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,7 +16,6 @@ import 'screens/profile_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/signup_screen.dart';
-import 'screens/school_dashboard_screen.dart';
 import 'school/student_dashboard_screen.dart';
 import 'school/parent_dashboard_screen.dart';
 import 'school/teacher_dashboard_screen.dart';
@@ -27,8 +27,6 @@ import 'firebase_options.dart';
 import 'theme_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-import 'package:demo/screens/forgot_password.dart';
-import 'package:demo/screens/reset_password.dart';
 
 bool showOnBoarding = true;
 
@@ -60,7 +58,9 @@ void main() async {
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print('Handling a background message: ${message.messageId}');
+  if (kDebugMode) {
+    print('Handling a background message: ${message.messageId}');
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -72,9 +72,13 @@ class MyApp extends StatelessWidget {
       builder: (context, themeProvider, child) {
         // Set up foreground message handler
         FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-          print('Received a message in the foreground: ${message.messageId}');
+          if (kDebugMode) {
+            print('Received a message in the foreground: ${message.messageId}');
+          }
           if (message.notification != null) {
-            print('Message also contained a notification: ${message.notification}');
+            if (kDebugMode) {
+              print('Message also contained a notification: ${message.notification}');
+            }
           }
         });
 
@@ -100,8 +104,7 @@ class MyApp extends StatelessWidget {
             '/admin-panel': (context) => const AdminPanelScreen(
                 userId: "",
                 username: "",
-                email: "",
-                schoolId: ""
+                email: ""
             ),
             '/login': (context) => const LoginScreen(),
             '/onboarding': (context) => const OnBoardingScreen(),
@@ -122,25 +125,25 @@ class MyApp extends StatelessWidget {
             ),
             '/change-password': (context) => const ChangePasswordScreen(),
             '/settings': (context) => const SettingsScreen(),
-            '/school-dashboard': (context) => const SchoolDashboardScreen(
+            '/school-dashboard': (context) => const StudentDashboardScreen(
               username: '', // Replace with actual username
-              userId: '', // Replace with actual userId
+              userId: '', schoolId: '', schoolName: '', // Replace with actual userId
             ),
             '/student-dashboard': (context) => const StudentDashboardScreen(
               username: '',
-              userId: '',
+              userId: '', schoolId: '', schoolName: '',
             ),
             '/parent-dashboard': (context) => const ParentDashboardScreen(
               username:'',
-              userId: '',
+              userId: '', schoolId: '', schoolName: '',
             ),
             '/teacher-dashboard': (context) => const TeacherDashboardScreen(
               username: '',
-              userId:'',
+              userId:'', schoolId: '', schoolName: '',
             ),
             '/admin-dashboard': (context) => const AdminDashboardScreen(
               username: '',
-              userId: '', schoolId: '',
+              userId: '', schoolId: '', schoolName: '',
             ),
             '/company-dashboard': (context) => const CompanyDashboardScreen(
               username: '', // Replace with actual username
