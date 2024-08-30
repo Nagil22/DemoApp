@@ -126,6 +126,7 @@ class DashboardScreen extends StatelessWidget {
                   child: _buildQuickAccessCard(
                     context,
                     icon: Icons.school,
+                    color: Colors.deepOrangeAccent,
                     title: 'Schools',
                     onTap: () => _navigateToDashboard(context, const SchoolDashboardScreen(username: '', userId: '')),
                   )
@@ -133,6 +134,7 @@ class DashboardScreen extends StatelessWidget {
                 Expanded(
                   child: _buildQuickAccessCard(
                   context,
+                  color: Colors.lightGreen,
                   icon: Icons.business,
                   title: 'Companies',
                   onTap: () => _navigateToDashboard(context, const CompanyDashboardScreen(username: '', userId: '')),
@@ -148,6 +150,7 @@ class DashboardScreen extends StatelessWidget {
                 Expanded(
                   child: _buildQuickAccessCard(
                   context,
+                  color: Colors.blue,
                   icon: Icons.people,
                   title: 'Parents',
                   onTap: () => _navigateToDashboard(context, const ParentDashboardScreen(username: '', userId: '')),
@@ -156,6 +159,7 @@ class DashboardScreen extends StatelessWidget {
                 Expanded(
                   child: _buildQuickAccessCard(
                   context,
+                  color: Colors.pink,
                   icon: Icons.admin_panel_settings,
                   title: 'School Admin',
                   onTap: () => _navigateToDashboard(context, const AdminDashboardScreen(username: '', userId: '', schoolId: '')),
@@ -171,6 +175,7 @@ class DashboardScreen extends StatelessWidget {
                 Expanded(
                   child: _buildQuickAccessCard(
                     context,
+                    color: Colors.purple,
                     icon: Icons.gavel,
                     title: 'Party',
                     onTap: () => _navigateToDashboard(context, const PoliticalPartyDashboardScreen(username: '', userId: '')),
@@ -179,6 +184,7 @@ class DashboardScreen extends StatelessWidget {
                 Expanded(
                   child: _buildQuickAccessCard(
                   context,
+                  color: Colors.teal,
                   icon: Icons.analytics,
                   title: 'Analytics',
                   onTap: () {
@@ -205,12 +211,13 @@ class DashboardScreen extends StatelessWidget {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    required Color color,
   }) {
     return InkWell(
       onTap: onTap,
       child: Card(
         elevation: 7,
-        color: Colors.blue,
+        color: color,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(

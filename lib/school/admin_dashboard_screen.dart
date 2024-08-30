@@ -63,9 +63,10 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Admin Dashboard - ${widget.username}'),
-        backgroundColor: Colors.black,
+        title: Text('Admin Dashboard - ${widget.username}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+        backgroundColor: Colors.white
       ),
+      backgroundColor: Colors.white,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -88,6 +89,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
       child: ExpansionTile(
         leading: Icon(icon),
         title: Text(title),
+        backgroundColor: Colors.blueAccent,
         children: [contentBuilder()],
       ),
     );
