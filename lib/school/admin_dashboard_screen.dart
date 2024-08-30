@@ -86,12 +86,26 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildSection(String title, IconData icon, Widget Function() contentBuilder) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      child: ExpansionTile(
-        leading: Icon(icon),
-        title: Text(title),
-        backgroundColor: Colors.blueAccent,
-        children: [contentBuilder()],
+      elevation: 2,
+      color: Colors.blue.withOpacity(1),
+      shape:  RoundedRectangleBorder(
+          // side:  BorderSide(color: Colors.black.withOpacity(0.2), width: 1.0),
+          borderRadius: BorderRadius.circular(10.0)
       ),
+        child:
+        Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            leading: Icon(icon),
+            title: Text(title),
+            // textColor: Colors.blue,
+            collapsedTextColor: Colors.white,
+            iconColor: Colors.blue,
+            collapsedIconColor: Colors.white,
+            backgroundColor: Colors.white,
+            children: [contentBuilder()],
+          ),
+        )
     );
   }
 
