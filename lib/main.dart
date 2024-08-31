@@ -1,34 +1,16 @@
-import 'package:demo/screens/forgot_password.dart';
-import 'package:demo/screens/profile/account_page.dart';
-import 'package:demo/screens/profile/change_password.dart';
-import 'package:demo/screens/reset_password.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'admin_screen.dart';
 import 'nav/nav_items.dart';
 import 'screens/login_screen.dart';
-import 'screens/profile_screen.dart';
 import 'screens/onboarding_screen.dart';
-import 'screens/settings_screen.dart';
-import 'screens/signup_screen.dart';
-import 'screens/school_dashboard_screen.dart';
-import 'school/student_dashboard_screen.dart';
-import 'school/parent_dashboard_screen.dart';
-import 'school/teacher_dashboard_screen.dart';
-import 'school/admin_dashboard_screen.dart';
-import 'screens/company_dashboard_screen.dart';
-import 'screens/party_dashboard_screen.dart';
-import 'dash_screens/payments_screen.dart';
 import 'firebase_options.dart';
 import 'theme_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-
-import 'package:demo/screens/forgot_password.dart';
-import 'package:demo/screens/reset_password.dart';
 
 bool showOnBoarding = true;
 
@@ -60,7 +42,9 @@ void main() async {
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print('Handling a background message: ${message.messageId}');
+  if (kDebugMode) {
+    print('Handling a background message: ${message.messageId}');
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -70,14 +54,6 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
-        // Set up foreground message handler
-        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-          print('Received a message in the foreground: ${message.messageId}');
-          if (message.notification != null) {
-            print('Message also contained a notification: ${message.notification}');
-          }
-        });
-
         return MaterialApp(
           title: 'Dashboard App',
           theme: ThemeData(
@@ -91,68 +67,22 @@ class MyApp extends StatelessWidget {
           ),
           darkTheme: ThemeData.dark(),
           themeMode: themeProvider.themeMode,
-          initialRoute:
-                  FirebaseAuth.instance.currentUser == null ?
-                        showOnBoarding ? '/onboarding' : '/login'
-                            :
-                  '/admin-panel',
-          routes: {
-            '/admin-panel': (context) => const AdminPanelScreen(
-                userId: "",
-                username: "",
-                email: "",
-                schoolId: ""
-            ),
-            '/login': (context) => const LoginScreen(),
-            '/onboarding': (context) => const OnBoardingScreen(),
-            '/signup': (context) => const SignUpScreen(),
-            '/forgot': (context) => const ForgotPasswordScreen(),
-            '/reset': (context) => const ResetPasswordScreen(),
-            '/account': (context) => const AccountScreen(
-                userId: "",
-                username: "",
-                email: "",
-                userType: ""
-            ),
-            '/profile': (context) => const ProfileScreen(
-              username: '',
-              email: '',
-              userType: '',
-              userId: '',
-            ),
-            '/change-password': (context) => const ChangePasswordScreen(),
-            '/settings': (context) => const SettingsScreen(),
-            '/school-dashboard': (context) => const SchoolDashboardScreen(
-              username: '', // Replace with actual username
-              userId: '', // Replace with actual userId
-            ),
-            '/student-dashboard': (context) => const StudentDashboardScreen(
-              username: '',
-              userId: '',
-            ),
-            '/parent-dashboard': (context) => const ParentDashboardScreen(
-              username:'',
-              userId: '',
-            ),
-            '/teacher-dashboard': (context) => const TeacherDashboardScreen(
-              username: '',
-              userId:'',
-            ),
-            '/admin-dashboard': (context) => const AdminDashboardScreen(
-              username: '',
-              userId: '', schoolId: '',
-            ),
-            '/company-dashboard': (context) => const CompanyDashboardScreen(
-              username: '', // Replace with actual username
-              userId: '', // Replace with actual userId
-            ),
-            '/party-dashboard': (context) => const PoliticalPartyDashboardScreen(
-              username: '', // Replace with actual username
-              userId: '', // Replace with actual userId
-            ),
-            // '/calendar': (context) => const CalendarScreen(),
-            '/payments': (context) => const PaymentsScreen(),
-            '/notifications': (context) => const NotificationsScreen(),
+          home: FutureBuilder(
+            future: checkAuthState(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const CircularProgressIndicator();
+              } else {
+                if (snapshot.data == true) {
+                  return const LoginScreen();
+                } else {
+                  return const OnBoardingScreen();
+                }
+              }
+            },
+          ),
+          routes: const {
+            // ... (keep your existing routes)
           },
           onUnknownRoute: (settings) => MaterialPageRoute(
             builder: (context) => const LoginScreen(),
@@ -161,6 +91,17 @@ class MyApp extends StatelessWidget {
       },
     );
   }
+}
+
+Future<bool> checkAuthState() async {
+  User? user = FirebaseAuth.instance.currentUser;
+  if (user != null) {
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    if (userDoc.exists && userDoc['role'] == 'SuperAdmin') {
+      return true;
+    }
+  }
+  return false;
 }
 
 void navigateToAdminScreen(BuildContext context) async {
