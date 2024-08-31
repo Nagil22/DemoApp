@@ -1,3 +1,4 @@
+import 'package:demo/widgets/new_bottom_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -17,11 +18,35 @@ class ParentDashboardScreen extends StatefulWidget {
   ParentDashboardScreenState createState() => ParentDashboardScreenState();
 }
 
+List<IconData> navIcons = [
+  Icons.grade,
+  Icons.calendar_today,
+  Icons.notifications,
+  Icons.account_balance_wallet
+];
+
+List<String> navTitle = [
+  'Grades',
+  'Attendance',
+  'Notifications',
+  'Payments'
+];
+
+
+
 class ParentDashboardScreenState extends State<ParentDashboardScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<String> _childrenIds = [];
   String? _selectedChildId;
   int currentIndex = 0;
+  int selectedIndex = 0;
+
+  void _onNavItemTapped(int index) {
+    setState(() {
+      selectedIndex = index;
+    });
+  }
+
 
   @override
   void initState() {
@@ -52,16 +77,8 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> with Singl
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Parent Dashboard - ${widget.username}'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.grade), text: 'Grades'),
-            Tab(icon: Icon(Icons.calendar_today), text: 'Attendance'),
-            Tab(icon: Icon(Icons.notifications), text: 'Notifications'),
-            Tab(icon: Icon(Icons.account_balance_wallet), text: 'Payments'),
-          ],
-        ),
+        backgroundColor: Colors.white,
+        title: Text('Parent Dashboard - ${widget.username}', style: const TextStyle(fontSize: 20),),
         actions: [
           IconButton(
             icon: const Icon(Icons.exit_to_app),
@@ -76,16 +93,18 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> with Singl
         children: [
           _buildChildSelector(),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildGradesSection(),
-                _buildAttendanceSection(),
-                _buildNotificationsSection(),
-                _buildPaymentsSection(),
-              ],
-            ),
+            child: _bodySections(selectedIndex),
           ),
+          //   Create Bottom Navigation bar
+        Align(
+            alignment: Alignment.bottomCenter,
+            child: NewBottomNavBar(
+                currentIndex: selectedIndex,
+                icons: navIcons,
+                titles: navTitle,
+              onTapped: _onNavItemTapped,
+            )
+        )
         ],
       ),
     );
@@ -93,11 +112,16 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> with Singl
 
   Widget _buildChildSelector() {
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(20.0),
       child: DropdownButton<String>(
         value: _selectedChildId,
-        hint: const Text('Select a child'),
+        icon: const Icon(Icons.perm_identity_outlined),
+        hint: const Text('Click to select a child'),
         isExpanded: true,
+        underline: Container(
+          height: 2,
+            color: Colors.grey,
+        ),
         items: _childrenIds.map((String childId) {
           return DropdownMenuItem<String>(
             value: childId,
@@ -126,7 +150,7 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> with Singl
 
   Widget _buildGradesSection() {
     if (_selectedChildId == null) {
-      return const Center(child: Text('Please select a child'));
+      return const Center(child: Text('Please select a child to see grades'));
     }
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -152,13 +176,15 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> with Singl
             );
           },
         );
+
+
       },
     );
   }
 
   Widget _buildAttendanceSection() {
     if (_selectedChildId == null) {
-      return const Center(child: Text('Please select a child'));
+      return const Center(child: Text('Please select a child to view attendance'));
     }
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -194,7 +220,7 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> with Singl
 
   Widget _buildNotificationsSection() {
     if (_selectedChildId == null) {
-      return const Center(child: Text('Please select a child'));
+      return const Center(child: Text('Please select a child to send notifications'));
     }
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -227,7 +253,7 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> with Singl
 
   Widget _buildPaymentsSection() {
     if (_selectedChildId == null) {
-      return const Center(child: Text('Please select a child'));
+      return const Center(child: Text('Please select a child to make payment'));
     }
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
@@ -284,4 +310,86 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> with Singl
       },
     );
   }
+  Widget _bodySections(section){
+    switch (section){
+      case 0:
+        return _buildGradesSection();
+
+      case 1:
+        return _buildAttendanceSection();
+
+      case 2:
+        return _buildNotificationsSection();
+
+      case 3:
+        return _buildPaymentsSection();
+
+      default:
+       return _buildGradesSection();
+    }
+
+  }
+  // Widget _bottomNavBar(){
+  //   return Container(
+  //     height: 65,
+  //     margin: const EdgeInsets.only(
+  //       right: 24,
+  //       left: 24,
+  //       bottom: 24,
+  //     ),
+  //     decoration: BoxDecoration(
+  //         color: Colors.white,
+  //         borderRadius: BorderRadius.circular(20),
+  //         boxShadow: [
+  //           BoxShadow(
+  //               color: Colors.black.withAlpha(20),
+  //               blurRadius: 20,
+  //               spreadRadius: 10
+  //           )
+  //         ]
+  //     ),
+  //     child: Row(
+  //       crossAxisAlignment: CrossAxisAlignment.center,
+  //       mainAxisAlignment: MainAxisAlignment.center,
+  //       children: navIcons.map((icon){
+  //         int index = navIcons.indexOf(icon);
+  //         bool isSelected = selectedIndex == index;
+  //         return Material(
+  //           color: Colors.transparent,
+  //           child: GestureDetector(
+  //             onTap: (){
+  //               setState((){
+  //                 selectedIndex = index;
+  //               });
+  //             },
+  //             child: SingleChildScrollView(
+  //               child: Column(
+  //                 children: [
+  //                   Container(
+  //                     alignment: Alignment.center,
+  //                     margin: const EdgeInsets.only(
+  //                       top: 15,
+  //                       bottom: 0,
+  //                       left: 30,
+  //                       right: 30,
+  //                     ),
+  //                     child: Icon(icon, color: isSelected ? Colors.blue : Colors.grey, size: 25,),
+  //                   ),
+  //                   Text(
+  //                       navTitle[index],
+  //                       style: TextStyle(color: isSelected ? Colors.blue : Colors.grey, fontSize: 10)
+  //                   ),
+  //                   const SizedBox(
+  //                     height: 10,
+  //                   )
+  //                 ],
+  //               ),
+  //             ),
+  //           ),
+  //         );
+  //       }).toList(),
+  //     ),
+  //   );
+  // }
 }
+

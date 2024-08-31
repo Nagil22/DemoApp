@@ -1,4 +1,5 @@
 import 'package:demo/screens/profile_screen.dart';
+import 'package:demo/widgets/new_bottom_nav_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:demo/school/admin_dashboard_screen.dart';
@@ -45,6 +46,23 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
      schoolId = widget.schoolId;
   }
 
+  List<IconData> navIcons = [
+    Icons.dashboard,
+    Icons.notifications,
+    Icons.analytics,
+    Icons.school,
+    Icons.person
+  ];
+
+  List<String> navTitle = [
+    'Dashboard',
+    'Notifications',
+    'Analytics',
+    'Schools',
+    'Profile',
+  ];
+
+
   static const List<Widget> _widgetOptions = <Widget>[
     DashboardScreen(),
     NotificationsScreen(),
@@ -73,36 +91,51 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
       ),
       backgroundColor: Colors.white,
       body: _widgetOptions.elementAt(_selectedIndex),
-      bottomNavigationBar: BottomNavigationBar(
+        // Align(
+        //     alignment: Alignment.bottomCenter,
+        //     child: NewBottomNavBar(
+        //       currentIndex: selectedIndex,
+        //       icons: navIcons,
+        //       titles: navTitle,
+        //       onTapped: _onNavItemTapped,
+        //     )
+        // )
+      bottomNavigationBar: NewBottomNavBar(
+          currentIndex: _selectedIndex,
+          icons: navIcons,
+          titles: navTitle,
+          onTapped: _onItemTapped,
+        )
 
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Notifications',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
-            label: 'Analytics',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.school),
-            label: 'Schools',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        backgroundColor: Colors.blue,
-        selectedItemColor: Colors.blue[800],
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
-      ),
+      // BottomNavigationBar(
+      //   items: const <BottomNavigationBarItem>[
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.dashboard),
+      //       label: 'Dashboard',
+      //     ),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.notifications),
+      //       label: 'Notifications',
+      //     ),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.analytics),
+      //       label: 'Analytics',
+      //     ),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.school),
+      //       label: 'Schools',
+      //     ),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.person),
+      //       label: 'Profile',
+      //     ),
+      //   ],
+      //   currentIndex: _selectedIndex,
+      //   backgroundColor: Colors.blue,
+      //   selectedItemColor: Colors.blue[800],
+      //   unselectedItemColor: Colors.grey,
+      //   onTap: _onItemTapped,
+      // ),
     );
   }
 }

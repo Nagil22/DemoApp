@@ -1,0 +1,11 @@
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/illustrations/logo_updated.png
+
+  android_12:
+    color: "#FFFFFF"
+    image: assets/illustrations/logo_updated.png
+
+  web: false
+
+#flutter pub run flutter_native_splash:create --path=splash.yaml
