@@ -58,7 +58,7 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
         userId: widget.userId,
         username: username,
         email: email,
-        userType: "Super Admin"),
+        userType: "", accentColor: Colors.blueAccent,),
     const AdminManagementScreen(), // Integrating the AdminManagementScreen here
   ];
 
@@ -132,7 +132,7 @@ class DashboardScreen extends StatelessWidget {
                     icon: Icons.school,
                     title: 'Schools',
                     onTap: () => _navigateToDashboard(context,
-                        const SchoolDashboardScreen(username: '', userId: '', schoolName: '', schoolId: '',)),
+                        const SchoolDashboardScreen(username: '', userId: '', schoolName: '', schoolCode: '',)),
                   ),
                 ),
                 Expanded(
@@ -156,7 +156,7 @@ class DashboardScreen extends StatelessWidget {
                     icon: Icons.people,
                     title: 'Parents',
                     onTap: () => _navigateToDashboard(context,
-                        const ParentDashboardScreen(username: '', userId: '', schoolId: '', schoolName: '',)),
+                        const ParentDashboardScreen(username: '', userId: '', schoolCode: '', schoolName: '',)),
                   ),
                 ),
                 Expanded(
@@ -167,7 +167,7 @@ class DashboardScreen extends StatelessWidget {
                     onTap: () => _navigateToDashboard(
                         context,
                         const AdminDashboardScreen(
-                          username: '', userId: '', schoolId: '', schoolName: '',)),
+                          username: '', userId: '', schoolCode: '', schoolName: '',)),
                   ),
                 ),
               ],

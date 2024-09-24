@@ -57,7 +57,7 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
         userId: widget.userId,
         username: username,
         email: email,
-        userType: "Super Admin"
+        userType: "Super Admin", accentColor: Colors.blueAccent,
     ),
     const AdminCreationScreen(),
   ];

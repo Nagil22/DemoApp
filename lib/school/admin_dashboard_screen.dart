@@ -1,18 +1,26 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:image_picker/image_picker.dart';
+import '../screens/profile_screen.dart';
+import '../dash_screens/payments_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final String username;
   final String userId;
-  final String schoolId;
+  final String schoolCode;
+  final String schoolName;
 
   const AdminDashboardScreen({
     super.key,
     required this.username,
     required this.userId,
-    required this.schoolId, required String schoolName,
+    required this.schoolCode,
+    required this.schoolName,
   });
 
   @override
@@ -22,26 +30,102 @@ class AdminDashboardScreen extends StatefulWidget {
 class AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   int _selectedIndex = 0;
   String _schoolName = '';
+  String _schoolAddress = '';
+  String _logoUrl = '';
   Color _colorPrimary = Colors.blue;
-  Color _colorSecondary = Colors.grey;
+  Color _colorSecondary = Colors.blueAccent;
+  Color _teacherColor = Colors.green;
+  Color _studentColor = Colors.orange;
+  Color _parentColor = Colors.purple;
+  final TextEditingController _searchController = TextEditingController();
+  List<QueryDocumentSnapshot> _filteredUsers = [];
+  bool _isLoading = true;
+  bool _hasUnsavedChanges = false;
+  Map<String, dynamic> _originalSchoolData = {};
+  Map<String, dynamic> _updatedSchoolData = {};
+  bool _schoolExists = false;
+
+  late Stream<QuerySnapshot> usersStream;
 
   @override
   void initState() {
     super.initState();
-    _fetchSchoolConfiguration();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    // Initialize the stream
+    usersStream = FirebaseFirestore.instance
+        .collection('users')
+        .where('schoolCode', isEqualTo: widget.schoolCode)
+        .orderBy('name')
+        .snapshots();
+
+    // Fetch school configuration
+    await _fetchSchoolConfiguration();
   }
 
   Future<void> _fetchSchoolConfiguration() async {
-    final schoolDoc = await _firestore.collection('schools').doc(widget.schoolId).get();
-    if (schoolDoc.exists) {
-      final schoolConfig = schoolDoc.data()!;
+    try {
+      if (kDebugMode) {
+        print('Fetching school configuration for school code: ${widget
+            .schoolCode}');
+      }
+      final schoolQuery = await _firestore
+          .collection('schools')
+          .where('code', isEqualTo: widget.schoolCode)
+          .limit(1)
+          .get();
+
+      if (schoolQuery.docs.isNotEmpty) {
+        final schoolDoc = schoolQuery.docs.first;
+        final schoolConfig = schoolDoc.data();
+
+        if (kDebugMode) {
+          print('School found: ${schoolConfig['name']}');
+        }
+
+        setState(() {
+          _schoolExists = true;
+          _originalSchoolData = Map<String, dynamic>.from(schoolConfig);
+          _updatedSchoolData = Map<String, dynamic>.from(schoolConfig);
+          _schoolName = schoolConfig['name'] ?? '';
+          _schoolAddress = schoolConfig['address'] ?? '';
+          _logoUrl = schoolConfig['logo'] ?? '';
+          _colorPrimary = Color(int.parse(
+              schoolConfig['accentColor']?.replaceFirst('#', '0xff') ??
+                  '0xFF2196F3'));
+          _colorSecondary = Color(int.parse(
+              schoolConfig['accentColor']?.replaceFirst('#', '0xff') ??
+                  '0xFF64B5F6')).withOpacity(0.7);
+          _teacherColor = Color(int.parse(
+              schoolConfig['teacherColor']?.replaceFirst('#', '0xff') ??
+                  '0xFF4CAF50'));
+          _studentColor = Color(int.parse(
+              schoolConfig['studentColor']?.replaceFirst('#', '0xff') ??
+                  '0xFFFFA726'));
+          _parentColor = Color(int.parse(
+              schoolConfig['parentColor']?.replaceFirst('#', '0xff') ??
+                  '0xFF9C27B0'));
+          _isLoading = false;
+        });
+      } else {
+        if (kDebugMode) {
+          print('School not found for code: ${widget.schoolCode}');
+        }
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching school configuration: $e');
+      }
       setState(() {
-        _schoolName = schoolConfig['name'];
-        _colorPrimary = Color(int.parse(schoolConfig['colorPrimary'].replaceFirst('#', '0xff')));
-        _colorSecondary = Color(int.parse(schoolConfig['colorSecondary'].replaceFirst('#', '0xff')));
+        _isLoading = false;
       });
     }
   }
@@ -54,20 +138,55 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (!_schoolExists) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Create School')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('School "${widget.schoolCode}" does not exist.'),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Theme(
       data: ThemeData(
         primaryColor: _colorPrimary,
-        colorScheme: ColorScheme.fromSwatch().copyWith(secondary: _colorSecondary),
+        colorScheme: ColorScheme.fromSwatch().copyWith(
+            secondary: _colorSecondary),
       ),
       child: Scaffold(
         appBar: AppBar(
           title: Text('Admin Dashboard - $_schoolName'),
           backgroundColor: _colorPrimary,
+          leading: Container(
+            padding: const EdgeInsets.all(8.0),
+            child: _logoUrl.isNotEmpty
+                ? Image.network(_logoUrl, fit: BoxFit.contain)
+                : const Placeholder(
+              fallbackHeight: 40,
+              fallbackWidth: 40,
+              color: Colors.white,
+            ),
+          ),
           actions: [
+            if (_hasUnsavedChanges)
+              TextButton(
+                onPressed: _saveChanges,
+                child: Text(
+                    'Save Changes', style: TextStyle(color: _colorSecondary)),
+              ),
             IconButton(
-              icon: Icon(Icons.notifications, color: _colorSecondary),
+              icon: const Icon(Icons.notifications, color: Colors.black),
               onPressed: () {
-                // TODO: Implement notification viewing functionality
+                // Implement notification viewing functionality
               },
             ),
           ],
@@ -88,8 +207,8 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
               label: 'Payments',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.notifications),
-              label: 'Notifications',
+              icon: Icon(Icons.person),
+              label: 'Profile',
             ),
           ],
           currentIndex: _selectedIndex,
@@ -108,87 +227,333 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
       case 1:
         return _buildUsersPage();
       case 2:
-        return _buildPaymentsPage();
+        return PaymentsScreen(schoolCode: widget.schoolCode, userId: '',);
       case 3:
-        return _buildNotificationsPage();
+        return ProfileScreen(userId: widget.userId,
+          username: '',
+          email: '',
+          userType: '',
+          accentColor: Colors.blueAccent,);
       default:
         return const Center(child: Text('Page not found'));
     }
   }
 
   Widget _buildOverviewPage() {
-    // TODO: Implement overview page
-    return const Center(child: Text('Overview Page'));
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('School Details', style: Theme
+              .of(context)
+              .textTheme
+              .headlineSmall),
+          const SizedBox(height: 16),
+          _buildEditableField('School Name', _schoolName, (value) =>
+              _updateSchoolField('name', value)),
+          _buildEditableField('School Address', _schoolAddress, (value) =>
+              _updateSchoolField('address', value)),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _pickSchoolLogo,
+            child: const Text('Update School Logo'),
+          ),
+          const SizedBox(height: 16),
+          Text('User Accent Colors', style: Theme
+              .of(context)
+              .textTheme
+              .titleLarge),
+          const SizedBox(height: 8),
+          _buildColorPicker('Teacher Accent', _teacherColor, (color) =>
+              _updateSchoolField('teacherAccent',
+                  '#${color.value.toRadixString(16).substring(2)}')),
+          _buildColorPicker('Student Accent', _studentColor, (color) =>
+              _updateSchoolField('studentAccent',
+                  '#${color.value.toRadixString(16).substring(2)}')),
+          _buildColorPicker('Parent Accent', _parentColor, (color) =>
+              _updateSchoolField('parentAccent',
+                  '#${color.value.toRadixString(16).substring(2)}')),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: _saveChanges,
+            child: const Text('Save Changes'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditableField(String label, String value,
+      Function(String) onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: TextFormField(
+        initialValue: value,
+        decoration: InputDecoration(labelText: label),
+        onChanged: (newValue) {
+          onChanged(newValue);
+          _checkForUnsavedChanges();
+        },
+      ),
+    );
+  }
+
+  Widget _buildColorPicker(String label, Color currentColor,
+      Function(Color) onColorChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Row(
+        children: [
+          Text(label),
+          const SizedBox(width: 16),
+          GestureDetector(
+            onTap: () => _showColorPicker(label, currentColor, onColorChanged),
+            child: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: currentColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.grey),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showColorPicker(String label, Color currentColor,
+      Function(Color) onColorChanged) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Pick $label color'),
+          content: SingleChildScrollView(
+            child: ColorPicker(
+              pickerColor: currentColor,
+              onColorChanged: (color) {
+                currentColor = color;
+              },
+              pickerAreaHeightPercent: 0.8,
+              labelTypes: const [],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Save'),
+              onPressed: () {
+                onColorChanged(currentColor);
+                _updateSchoolField('${label.toLowerCase()}Color',
+                    '#${currentColor.value.toRadixString(16).substring(2)}');
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('$label color updated')),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _pickSchoolLogo() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      try {
+        final ref = _storage.ref().child('school_logos/${widget.schoolCode}');
+        await ref.putFile(File(image.path));
+        final url = await ref.getDownloadURL();
+        _updateSchoolField('logo', url);
+        setState(() {
+          _logoUrl = url;
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error updating logo: $e')));
+      }
+    }
+  }
+
+  void _updateSchoolField(String field, dynamic value) {
+    setState(() {
+      _updatedSchoolData[field] = value;
+    });
+    _checkForUnsavedChanges();
+
+    // Update Firestore immediately for color changes
+    if (field.endsWith('Color')) {
+      _firestore.collection('schools').doc(widget.schoolCode).update(
+          {field: value}).then((_) {
+        if (kDebugMode) {
+          print('Updated $field to $value in Firestore');
+        }
+      }).catchError((error) {
+        if (kDebugMode) {
+          print('Error updating $field: $error');
+        }
+      });
+    }
+  }
+
+  void _checkForUnsavedChanges() {
+    bool hasChanges = false;
+    _originalSchoolData.forEach((key, value) {
+      if (_updatedSchoolData[key] != value) {
+        hasChanges = true;
+      }
+    });
+    setState(() {
+      _hasUnsavedChanges = hasChanges;
+    });
+  }
+
+  Future<void> _saveChanges() async {
+    try {
+      final schoolQuery = await _firestore
+          .collection('schools')
+          .where('code', isEqualTo: widget.schoolCode)
+          .limit(1)
+          .get();
+
+      if (schoolQuery.docs.isNotEmpty) {
+        final schoolDoc = schoolQuery.docs.first;
+        await schoolDoc.reference.update(_updatedSchoolData);
+        setState(() {
+          _originalSchoolData = Map<String, dynamic>.from(_updatedSchoolData);
+          _hasUnsavedChanges = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Changes saved successfully')));
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Error: School not found')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error saving changes: $e')));
+      }
+    }
   }
 
   Widget _buildUsersPage() {
     return Column(
       children: [
-        ElevatedButton(
-          onPressed: _showCreateUserDialog,
-          child: const Text('Create New User'),
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              hintText: 'Search users',
+              prefixIcon: Icon(Icons.search),
+            ),
+            onChanged: _filterUsers,
+          ),
         ),
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
-            stream: _firestore.collection('schools').doc(widget.schoolId).collection('users').snapshots(),
+            stream: usersStream,
             builder: (context, snapshot) {
-              if (!snapshot.hasData) return const CircularProgressIndicator();
-              return ListView(
-                children: snapshot.data!.docs.map((doc) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Center(child: Text('No users found'));
+              }
+
+              _filteredUsers = snapshot.data!.docs;
+              return ListView.builder(
+                itemCount: _filteredUsers.length,
+                itemBuilder: (context, index) {
+                  final doc = _filteredUsers[index];
                   final user = doc.data() as Map<String, dynamic>;
                   return ListTile(
-                    title: Text(user['name']),
-                    subtitle: Text(user['email']),
-                    trailing: Text(user['role']),
+                    leading: CircleAvatar(
+                      backgroundColor: _getUserColor(user['role']),
+                      child: Text(user['name'][0].toUpperCase()),
+                    ),
+                    title: Text(user['name'] ?? 'No name'),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(user['email'] ?? 'No email'),
+                        Text('Role: ${user['role'] ?? 'No role'}'),
+                      ],
+                    ),
+                    trailing: Switch(
+                      value: user['status'] == 'active',
+                      onChanged: (bool value) {
+                        _updateUserStatus(doc.id, value ? 'active' : 'inactive');
+                      },
+                    ),
+                    onTap: () => _showUserDetailsDialog(doc),
                   );
-                }).toList(),
+                },
               );
             },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: ElevatedButton(
+            onPressed: _showCreateUserDialog,
+            child: const Text('Create New User'),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildPaymentsPage() {
-    // TODO: Implement payments page
-    return const Center(child: Text('Payments Page'));
+  Color _getUserColor(String? role) {
+    switch (role) {
+      case 'teacher':
+        return _teacherColor;
+      case 'student':
+        return _studentColor;
+      case 'parent':
+        return _parentColor;
+      case 'schooladmin':
+        return _colorPrimary;
+      default:
+        return Colors.grey;
+    }
   }
 
-  Widget _buildNotificationsPage() {
-    return Column(
-      children: [
-        ElevatedButton(
-          onPressed: _showSendNotificationDialog,
-          child: const Text('Send New Notification'),
-        ),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: _firestore.collection('schools').doc(widget.schoolId).collection('notifications').snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const CircularProgressIndicator();
-              return ListView(
-                children: snapshot.data!.docs.map((doc) {
-                  final notification = doc.data() as Map<String, dynamic>;
-                  return ListTile(
-                    title: Text(notification['title']),
-                    subtitle: Text(notification['body']),
-                    trailing: Text(notification['timestamp'].toDate().toString()),
-                  );
-                }).toList(),
-              );
-            },
-          ),
-        ),
-      ],
-    );
+  void _updateUserStatus(String userId, String status) {
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .update({'status': status})
+        .then((_) => print('User status updated'))
+        .catchError((error) => print('Failed to update user status: $error'));
   }
-
   void _showCreateUserDialog() {
     final TextEditingController nameController = TextEditingController();
     final TextEditingController emailController = TextEditingController();
     final TextEditingController passwordController = TextEditingController();
-    final TextEditingController roleController = TextEditingController();
+    String selectedRole = 'student';
+    String selectedStatus = 'active';
 
     showDialog(
       context: context,
@@ -211,9 +576,37 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   decoration: const InputDecoration(labelText: 'Password'),
                   obscureText: true,
                 ),
-                TextField(
-                  controller: roleController,
+                DropdownButtonFormField<String>(
+                  value: selectedRole,
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      selectedRole = newValue;
+                    }
+                  },
+                  items: <String>['student', 'teacher', 'parent', 'schooladmin']
+                      .map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
                   decoration: const InputDecoration(labelText: 'Role'),
+                ),
+                DropdownButtonFormField<String>(
+                  value: selectedStatus,
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      selectedStatus = newValue;
+                    }
+                  },
+                  items: <String>['active', 'inactive', 'suspended']
+                      .map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  decoration: const InputDecoration(labelText: 'Status'),
                 ),
               ],
             ),
@@ -225,30 +618,14 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
             TextButton(
               child: const Text('Create'),
-              onPressed: () async {
-                try {
-                  UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-                    email: emailController.text,
-                    password: passwordController.text,
-                  );
-
-                  await _firestore.collection('schools').doc(widget.schoolId).collection('users').doc(userCredential.user!.uid).set({
-                    'name': nameController.text,
-                    'email': emailController.text,
-                    'role': roleController.text,
-                    'schoolId': widget.schoolId,
-                    'createdAt': FieldValue.serverTimestamp(),
-                  });
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('User created successfully')),
-                  );
-                  Navigator.of(context).pop();
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error creating user: $e')),
-                  );
-                }
+              onPressed: () {
+                _createUser(
+                  nameController.text,
+                  emailController.text,
+                  passwordController.text,
+                  selectedRole,
+                  selectedStatus,
+                );
               },
             ),
           ],
@@ -256,69 +633,107 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
       },
     );
   }
+  
 
-  void _showSendNotificationDialog() {
-    final TextEditingController titleController = TextEditingController();
-    final TextEditingController bodyController = TextEditingController();
+  void _filterUsers(String query) {
+    final filtered = _filteredUsers.where((userDoc) {
+      final user = userDoc.data() as Map<String, dynamic>;
+      return user['name'].toLowerCase().contains(query.toLowerCase()) ||
+          user['email'].toLowerCase().contains(query.toLowerCase());
+    }).toList();
 
+    setState(() {
+      _filteredUsers = filtered;
+    });
+  }
+
+  void _showUserDetailsDialog(QueryDocumentSnapshot userDoc) {
+    final user = userDoc.data() as Map<String, dynamic>;
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Send Notification'),
-          content: SingleChildScrollView(
-            child: Column(
+      builder: (context) =>
+          AlertDialog(
+            title: Text(user['name']),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Title'),
-                ),
-                TextField(
-                  controller: bodyController,
-                  decoration: const InputDecoration(labelText: 'Body'),
-                  maxLines: 3,
-                ),
+                Text('Email: ${user['email']}'),
+                Text('Role: ${user['role']}'),
               ],
             ),
+            actions: [
+              TextButton(
+                onPressed: () => _toggleUserAccess(userDoc),
+                child: Text(user['blocked'] == true ? 'Unblock' : 'Block'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            TextButton(
-              child: const Text('Send'),
-              onPressed: () async {
-                try {
-                  await _firestore.collection('schools').doc(widget.schoolId).collection('notifications').add({
-                    'title': titleController.text,
-                    'body': bodyController.text,
-                    'timestamp': FieldValue.serverTimestamp(),
-                  });
-
-                  await FirebaseMessaging.instance.subscribeToTopic('school_${widget.schoolId}');
-                  await FirebaseMessaging.instance.sendMessage(
-                    to: '/topics/school_${widget.schoolId}',
-                    data: {
-                      'title': titleController.text,
-                      'body': bodyController.text,
-                    },
-                  );
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Notification sent successfully')),
-                  );
-                  Navigator.of(context).pop();
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error sending notification: $e')),
-                  );
-                }
-              },
-            ),
-          ],
-        );
-      },
     );
   }
+
+  void _toggleUserAccess(QueryDocumentSnapshot userDoc) {
+    final user = userDoc.data() as Map<String, dynamic>;
+    final isBlocked = user['blocked'] == true;
+    _firestore.collection('schools').doc(widget.schoolCode).collection('users')
+        .doc(userDoc.id).update({
+      'blocked': !isBlocked,
+    })
+        .then((_) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(isBlocked ? 'User unblocked' : 'User blocked'),
+      ));
+    });
+  }
+
+  Future<void> _createUser(String name, String email, String password, String role, String status) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Create user in Firebase Authentication
+      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Create user document in Firestore
+      await _firestore.collection('users').doc(userCredential.user!.uid).set({
+        'name': name,
+        'email': email,
+        'role': role,
+        'schoolCode': widget.schoolCode,
+        'status': status,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastLogin': FieldValue.serverTimestamp(),
+      });
+
+      // Wait for a short time to ensure the new user is reflected in the stream
+      await Future.delayed(const Duration(seconds: 1));
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('User created successfully'),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to create user: $e'),
+        ));
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 }
+

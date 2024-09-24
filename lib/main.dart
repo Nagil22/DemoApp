@@ -5,12 +5,29 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+// Import your custom screens and widgets
 import 'nav/nav_items.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/forgot_password.dart';
+import 'screens/reset_password.dart';
+import 'screens/profile/account_page.dart';
+import 'screens/profile/change_password.dart';
+import 'screens/profile_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/signup_screen.dart';
+import 'school/student_dashboard_screen.dart';
+import 'school/parent_dashboard_screen.dart';
+import 'school/teacher_dashboard_screen.dart';
+import 'school/admin_dashboard_screen.dart';
+import 'screens/company_dashboard_screen.dart';
+import 'screens/party_dashboard_screen.dart';
+import 'dash_screens/payments_screen.dart';
+import 'admin_screen.dart';
 import 'firebase_options.dart';
 import 'theme_provider.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 
 bool showOnBoarding = true;
 
@@ -54,6 +71,18 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
+        // Set up foreground message handler
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+          if (kDebugMode) {
+            print('Received a message in the foreground: ${message.messageId}');
+          }
+          if (message.notification != null) {
+            if (kDebugMode) {
+              print('Message also contained a notification: ${message.notification}');
+            }
+          }
+        });
+
         return MaterialApp(
           title: 'Dashboard App',
           theme: ThemeData(
@@ -74,15 +103,33 @@ class MyApp extends StatelessWidget {
                 return const CircularProgressIndicator();
               } else {
                 if (snapshot.data == true) {
-                  return const LoginScreen();
+                  return const AdminPanelScreen(userId: "", username: "", email: "");
                 } else {
-                  return const OnBoardingScreen();
+                  return showOnBoarding ? const OnBoardingScreen() : const LoginScreen();
                 }
               }
             },
           ),
-          routes: const {
-            // ... (keep your existing routes)
+          routes: {
+            '/admin-panel': (context) => const AdminPanelScreen(userId: "", username: "", email: ""),
+            '/login': (context) => const LoginScreen(),
+            '/onboarding': (context) => const OnBoardingScreen(),
+            '/signup': (context) => const SignUpScreen(),
+            '/forgot': (context) => const ForgotPasswordScreen(),
+            '/reset': (context) => const ResetPasswordScreen(),
+            '/account': (context) => const AccountScreen(userId: "", username: "", email: "", userType: ""),
+            '/profile': (context) => const ProfileScreen(username: '', email: '', userType: '', userId: '', accentColor: Colors.blueAccent,),
+            '/change-password': (context) => const ChangePasswordScreen(),
+            '/settings': (context) => const SettingsScreen(),
+            '/school-dashboard': (context) => const StudentDashboardScreen(username: '', userId: '', schoolCode: '', schoolName: ''),
+            '/student-dashboard': (context) => const StudentDashboardScreen(username: '', userId: '', schoolCode: '', schoolName: ''),
+            '/parent-dashboard': (context) => const ParentDashboardScreen(username:'', userId: '', schoolCode: '', schoolName: ''),
+            '/teacher-dashboard': (context) => const TeacherDashboardScreen(username: '', userId:'', schoolCode: '', schoolName: '', ),
+            '/admin-dashboard': (context) => const AdminDashboardScreen(username: '', userId: '', schoolName: '', schoolCode: '',),
+            '/company-dashboard': (context) => const CompanyDashboardScreen(username: '', userId: ''),
+            '/party-dashboard': (context) => const PoliticalPartyDashboardScreen(username: '', userId: ''),
+            '/payments': (context) => const PaymentsScreen(schoolCode: '', userId: '',),
+            '/notifications': (context) => const NotificationsScreen(),
           },
           onUnknownRoute: (settings) => MaterialPageRoute(
             builder: (context) => const LoginScreen(),

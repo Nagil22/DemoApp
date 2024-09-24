@@ -24,17 +24,17 @@ class NavItems extends ChangeNotifier {
     NavItem(
       id: 1,
       icon: Icons.home,
-      destination: const SchoolDashboardScreen(username: '', userId: '', schoolId: '', schoolName: '',),
+      destination: const SchoolDashboardScreen(username: '', userId: '', schoolCode: '', schoolName: '',),
     ),
     NavItem(
       id: 2,
       icon: Icons.person,
-      destination: const ProfileScreen(username: '', email: '', userType: '', userId: '',),
+      destination: const ProfileScreen(username: '', email: '', userType: '', userId: '', accentColor: Colors.blueAccent,),
     ),
     NavItem(
       id: 3,
       icon: Icons.payments,
-      destination: const PaymentsScreen(),
+      destination: const PaymentsScreen(schoolCode: '', userId: '',),
     ),
     NavItem(
       id: 4,

@@ -41,7 +41,7 @@ class SchoolListScreen extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SchoolDashboardScreen(schoolId: schoolId, schoolName: schoolName, username: '', userId: '',),
+        builder: (context) => SchoolDashboardScreen( schoolName: schoolName, username: '', userId: '', schoolCode: '',),
       ),
     );
   }

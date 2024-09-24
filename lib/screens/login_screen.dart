@@ -25,7 +25,7 @@ class AuthService {
         if (userData.exists) {
           Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
           String role = data['role'] ?? '';
-          String? schoolId = data.containsKey('schoolId') ? data['schoolId'] : null;
+          String? schoolCode = data['schoolCode'];
 
           print('User role: $role'); // Debugging line
 
@@ -36,40 +36,40 @@ class AuthService {
                 username: data['name'] ?? '',
                 email: user.email ?? '',
               );
-            case 'admin':
+            case 'schooladmin':
               return AdminDashboardScreen(
                 username: data['name'] ?? '',
                 userId: user.uid,
-                schoolId: schoolId ?? '',
+                schoolCode: schoolCode ?? '',
                 schoolName: '',
               );
             case 'teacher':
               return TeacherDashboardScreen(
                 userId: user.uid,
-                schoolId: schoolId ?? '',
+                schoolCode: schoolCode ?? '',
                 username: data['name'] ?? '',
                 schoolName: '',
               );
             case 'parent':
               return ParentDashboardScreen(
                 userId: user.uid,
-                schoolId: schoolId ?? '',
+                schoolCode: schoolCode ?? '',
                 username: data['name'] ?? '',
                 schoolName: '',
               );
             case 'student':
               return StudentDashboardScreen(
                 userId: user.uid,
-                schoolId: schoolId ?? '',
+                schoolCode: schoolCode ?? '',
                 username: data['name'] ?? '',
                 schoolName: '',
               );
-            case 'company-admin':
+            case 'companyadmin':
               return CompanyDashboardScreen(
                 username: username ?? '',
                 userId: userId ?? '',
               );
-            case 'party-admin':
+            case 'partyadmin':
               return PoliticalPartyDashboardScreen(
                 username: username ?? '',
                 userId: userId ?? '',
@@ -96,7 +96,7 @@ class AuthService {
     required String password,
     required String name,
     required String role,
-    String? schoolId,
+    String? schoolCode,
   }) async {
     try {
       UserCredential result = await _auth.createUserWithEmailAndPassword(
@@ -109,7 +109,7 @@ class AuthService {
           'name': name,
           'email': email,
           'role': role,
-          'schoolId': schoolId,
+          'schoolCode': schoolCode,
           'createdAt': FieldValue.serverTimestamp(),
         });
       }

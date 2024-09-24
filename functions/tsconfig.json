@@ -1,3 +1,4 @@
+
 {
   "compilerOptions": {
     "lib": ["es6", "dom"],
@@ -7,9 +8,11 @@
     "sourceMap": true,
     "strict": true,
     "target": "es2017",
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   },
   "compileOnSave": true,
-  "include": ["src"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "lib", ".eslintrc.js"]
 }
-

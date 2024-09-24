@@ -6,13 +6,17 @@ import 'package:demo/school/parent_dashboard_screen.dart';
 import 'package:demo/school/student_dashboard_screen.dart';
 
 class SchoolDashboardScreen extends StatelessWidget {
-  final String schoolId;
+  final String username;
+  final String userId;
+  final String schoolCode;
   final String schoolName;
 
   const SchoolDashboardScreen({
     super.key,
-    required this.schoolId,
-    required this.schoolName, required String username, required String userId,
+    required this.username,
+    required this.userId,
+    required this.schoolCode,
+    required this.schoolName,
   });
 
   @override
@@ -22,7 +26,7 @@ class SchoolDashboardScreen extends StatelessWidget {
         title: Text('$schoolName Dashboards'),
       ),
       body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('schools').doc(schoolId).get(),
+        future: FirebaseFirestore.instance.collection('schools').doc(schoolCode).get(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return const Center(child: Text('Something went wrong'));
@@ -39,7 +43,7 @@ class SchoolDashboardScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => AdminDashboardScreen(schoolId: schoolId, schoolName: schoolName, username: '', userId: '',),
+                    builder: (context) => AdminDashboardScreen(schoolCode: schoolCode, schoolName: schoolName, username: '', userId: '',),
                   ),
                 );
               }),
@@ -47,7 +51,7 @@ class SchoolDashboardScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => TeacherDashboardScreen(schoolId: schoolId, schoolName: schoolName, username: '', userId: '',),
+                    builder: (context) => TeacherDashboardScreen(schoolCode: schoolCode, schoolName: schoolName, username: '', userId: '', ),
                   ),
                 );
               }),
@@ -55,7 +59,7 @@ class SchoolDashboardScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ParentDashboardScreen(schoolId: schoolId, schoolName: schoolName, username: '', userId: '',),
+                    builder: (context) => ParentDashboardScreen(schoolCode: schoolCode, schoolName: schoolName, username: '', userId: '',),
                   ),
                 );
               }),
@@ -63,7 +67,7 @@ class SchoolDashboardScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => StudentDashboardScreen(schoolId: schoolId, schoolName: schoolName, username: '', userId: '',),
+                    builder: (context) => StudentDashboardScreen(schoolCode: schoolCode, schoolName: schoolName, username: '', userId: '',),
                   ),
                 );
               }),
