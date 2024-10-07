@@ -257,7 +257,17 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: _pickSchoolLogo,
-            child: const Text('Update School Logo'),
+            style: ElevatedButton.styleFrom(
+            elevation: 1,
+            minimumSize: const Size(400, 50),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(50.0),
+            ),
+            backgroundColor: Colors.white,
+          ),
+            child: const Text('Update School Logo',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.blue)),
           ),
           const SizedBox(height: 16),
           Text('User Accent Colors', style: Theme
@@ -276,8 +286,17 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   '#${color.value.toRadixString(16).substring(2)}')),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: _saveChanges,
-            child: const Text('Save Changes'),
+            onPressed: _saveChanges,style: ElevatedButton.styleFrom(
+            elevation: 4,
+            minimumSize: const Size(400, 50),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(50.0),
+            ),
+            backgroundColor: Colors.blue,
+          ),
+            child: const Text('Save Changes',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -407,6 +426,8 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+
+
   void _checkForUnsavedChanges() {
     bool hasChanges = false;
     _originalSchoolData.forEach((key, value) {
@@ -456,15 +477,19 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(10.0),
           child: TextField(
             controller: _searchController,
-            decoration: const InputDecoration(
+            decoration:  InputDecoration(
               hintText: 'Search users',
-              prefixIcon: Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: IconButton(onPressed: _searchController.clear, icon: const Icon(Icons.clear)),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30.0),
+                borderSide: const BorderSide(width:  0.2)
+              )
             ),
-            onChanged: _filterUsers,
-          ),
+            onChanged: _filterUsers,),
         ),
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
@@ -493,7 +518,7 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       backgroundColor: _getUserColor(user['role']),
                       child: Text(user['name'][0].toUpperCase()),
                     ),
-                    title: Text(user['name'] ?? 'No name'),
+                    title: Text(user['name'] ?? 'No name',  style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -515,10 +540,20 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: ElevatedButton(
+          padding: const EdgeInsets.all(26.0),
+          child:  ElevatedButton(
             onPressed: _showCreateUserDialog,
-            child: const Text('Create New User'),
+            style: ElevatedButton.styleFrom(
+            elevation: 4,
+            minimumSize: const Size(300, 50),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(50.0),
+            ),
+            backgroundColor: Colors.blue,
+          ),
+            child: const Text('Create New User',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white)),
           ),
         ),
       ],
