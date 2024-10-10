@@ -27,6 +27,19 @@ class AdminDashboardScreen extends StatefulWidget {
   AdminDashboardScreenState createState() => AdminDashboardScreenState();
 }
 
+List<IconData> navIcons = [
+  Icons.dashboard,
+  Icons.people,
+  Icons.payment,
+  Icons.person,
+];
+List<String> navTitle = [
+  "Overview",
+  "Users",
+  "Payment",
+  "Profile"
+];
+
 class AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -164,8 +177,15 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Admin Dashboard - $_schoolName'),
-          backgroundColor: _colorPrimary,
+          title:
+          Text(
+              'Admin Dashboard - $_schoolName',
+              style: const TextStyle(
+                 fontWeight: FontWeight.w500,
+                  fontSize: 20
+              )
+          ),
+          // backgroundColor: _colorPrimary,
           leading: Container(
             padding: const EdgeInsets.all(8.0),
             child: _logoUrl.isNotEmpty
@@ -191,33 +211,14 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           ],
         ),
-        body: _buildBody(),
-        bottomNavigationBar: BottomNavigationBar(
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard),
-              label: 'Overview',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.people),
-              label: 'Users',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.payment),
-              label: 'Payments',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person),
-              label: 'Profile',
-            ),
-          ],
-          currentIndex: _selectedIndex,
-          selectedItemColor: _colorPrimary,
-          unselectedItemColor: _colorSecondary,
-          onTap: _onItemTapped,
+        body: Stack(
+            children: [
+              _buildBody(),
+              Align(alignment: Alignment.bottomCenter, child: _navBar())
+            ],
+          ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildBody() {
@@ -237,6 +238,70 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
       default:
         return const Center(child: Text('Page not found'));
     }
+  }
+
+  Widget _navBar(){
+    return Container(
+      height: 65,
+      margin: const EdgeInsets.only(
+        right: 24,
+        left: 24,
+        bottom: 24
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(20),
+            blurRadius: 20,
+            spreadRadius: 10
+          )
+        ]
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: navIcons.map((icon) {
+          int index = navIcons.indexOf(icon);
+          bool isSelected = _selectedIndex == index;
+          return Material(
+            color: Colors.transparent,
+            child: GestureDetector(
+              onTap: (){
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Container(
+                      alignment: Alignment.center,
+                      margin: const EdgeInsets.only(
+                          top: 15,
+                          bottom:0,
+                          left: 30,
+                          right: 30
+                      ),
+                      child: Icon(icon, color: isSelected ? Colors.blue : Colors.grey),
+                      ),
+                    Text(
+                      navTitle[index],
+                      style: TextStyle(
+                          color: isSelected ? Colors.blue : Colors.grey,
+                          fontSize: 10
+                      )
+                    ),
+                    const SizedBox(height: 15)
+                  ],
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      )
+    );
   }
 
   Widget _buildOverviewPage() {
