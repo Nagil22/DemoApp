@@ -143,11 +143,6 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -310,10 +305,13 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('School Details', style: Theme
-              .of(context)
-              .textTheme
-              .headlineSmall),
+          const Text(
+              'School Details',
+              style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 22,
+              )
+          ),
           const SizedBox(height: 16),
           _buildEditableField('School Name', _schoolName, (value) =>
               _updateSchoolField('name', value)),
@@ -334,12 +332,15 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.blue)),
           ),
+          const SizedBox(height: 26),
+          const Text(
+              'User Accent Colors',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 22,
+              )
+          ),
           const SizedBox(height: 16),
-          Text('User Accent Colors', style: Theme
-              .of(context)
-              .textTheme
-              .titleLarge),
-          const SizedBox(height: 8),
           _buildColorPicker('Teacher Accent', _teacherColor, (color) =>
               _updateSchoolField('teacherAccent',
                   '#${color.value.toRadixString(16).substring(2)}')),
@@ -367,11 +368,15 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
     );
   }
-
   Widget _buildEditableField(String label, String value,
       Function(String) onChanged) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+    return Container(
+            margin: const EdgeInsets.symmetric(vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(10)
+            ),
       child: TextFormField(
         initialValue: value,
         decoration: InputDecoration(labelText: label),
@@ -389,17 +394,35 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
         children: [
-          Text(label),
-          const SizedBox(width: 16),
+          SizedBox(
+            width: 150, // Fixed width for text to align pills
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
+            ),
+          ),
           GestureDetector(
             onTap: () => _showColorPicker(label, currentColor, onColorChanged),
             child: Container(
-              width: 50,
-              height: 50,
+              width: 100,
+              height: 40,
               decoration: BoxDecoration(
                 color: currentColor,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade300, width: 1.5),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned(
+                    right: 8,
+                    child: Icon(
+                      Icons.edit,
+                      size: 20,
+                      color: currentColor.computeLuminance() > 0.5 ? Colors.black54 : Colors.white70,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -537,24 +560,29 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
       }
     }
   }
-
   Widget _buildUsersPage() {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(10.0),
+          padding: const EdgeInsets.all(16.0),
           child: TextField(
             controller: _searchController,
-            decoration:  InputDecoration(
+            decoration: InputDecoration(
               hintText: 'Search users',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: IconButton(onPressed: _searchController.clear, icon: const Icon(Icons.clear)),
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              suffixIcon: IconButton(
+                onPressed: _searchController.clear,
+                icon: const Icon(Icons.clear, color: Colors.grey),
+              ),
               border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30.0),
-                borderSide: const BorderSide(width:  0.2)
-              )
+                borderRadius: BorderRadius.circular(30.0),
+                borderSide: BorderSide.none,
+              ),
+              filled: true,
+              fillColor: Colors.grey[200],
             ),
-            onChanged: _filterUsers,),
+            onChanged: _filterUsers,
+          ),
         ),
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
@@ -573,22 +601,29 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
               }
 
               _filteredUsers = snapshot.data!.docs;
-              return ListView.builder(
+              return ListView.separated(
                 itemCount: _filteredUsers.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final doc = _filteredUsers[index];
                   final user = doc.data() as Map<String, dynamic>;
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: _getUserColor(user['role']),
-                      child: Text(user['name'][0].toUpperCase()),
+                      child: Text(
+                        user['name'][0].toUpperCase(),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
                     ),
-                    title: Text(user['name'] ?? 'No name',  style: const TextStyle(fontWeight: FontWeight.bold)),
+                    title: Text(
+                      user['name'] ?? 'No name',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(user['email'] ?? 'No email'),
-                        Text('Role: ${user['role'] ?? 'No role'}'),
+                        Text(user['email'] ?? 'No email', style: const TextStyle(fontSize: 12)),
+                        Text('Role: ${user['role'] ?? 'No role'}', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                       ],
                     ),
                     trailing: Switch(
@@ -596,29 +631,16 @@ class AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       onChanged: (bool value) {
                         _updateUserStatus(doc.id, value ? 'active' : 'inactive');
                       },
+                      activeColor: Colors.blue,
+                      activeTrackColor: Colors.blue.withOpacity(0.5),
+                      inactiveThumbColor: Colors.grey[400],
+                      inactiveTrackColor: Colors.grey[300],
                     ),
                     onTap: () => _showUserDetailsDialog(doc),
                   );
                 },
               );
             },
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(26.0),
-          child:  ElevatedButton(
-            onPressed: _showCreateUserDialog,
-            style: ElevatedButton.styleFrom(
-            elevation: 4,
-            minimumSize: const Size(300, 50),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(50.0),
-            ),
-            backgroundColor: Colors.blue,
-          ),
-            child: const Text('Create New User',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white)),
           ),
         ),
       ],

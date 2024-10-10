@@ -36,7 +36,13 @@ class PaymentsScreenState extends State<PaymentsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Payments for ${widget.schoolCode}'),
+        title: Text(
+            'Payments for ${widget.schoolCode}',
+            style: const TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 22,
+            )
+        ),
       ),
       body: Center(
         child: Column(
