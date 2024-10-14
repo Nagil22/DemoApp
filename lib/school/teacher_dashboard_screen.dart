@@ -24,6 +24,18 @@ class TeacherDashboardScreen extends StatefulWidget {
   TeacherDashboardScreenState createState() => TeacherDashboardScreenState();
 }
 
+List<IconData> navIcons = [
+  Icons.home,
+  Icons.class_,
+  Icons.person,
+];
+List<String> navTitle = [
+  "Overview",
+  "Classes",
+  "Profile"
+];
+
+
 class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   int _selectedIndex = 0;
   Color _accentColor = Colors.blue;
@@ -68,8 +80,14 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       ),
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Welcome, ${widget.username}'),
-          backgroundColor: _accentColor,
+          title: Text(
+            'Welcome, ${widget.username}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 20
+            )
+        ),
           actions: [
             Stack(
               children: [
@@ -105,15 +123,11 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             ),
           ],
         ),
-        body: _getSelectedSection(),
-        bottomNavigationBar: BottomNavigationBar(
-          items: const <BottomNavigationBarItem>[
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Overview'),
-            BottomNavigationBarItem(icon: Icon(Icons.class_), label: 'Classes'),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        body:  Stack(
+          children: [
+            _getSelectedSection(),
+            Align(alignment: Alignment.bottomCenter, child: _navBar())
           ],
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
         ),
       ),
     );
@@ -186,6 +200,69 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       });
     });
   }
+  Widget _navBar(){
+    return Container(
+        height: 65,
+        margin: const EdgeInsets.only(
+            right: 24,
+            left: 24,
+            bottom: 24
+        ),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withAlpha(20),
+                  blurRadius: 20,
+                  spreadRadius: 10
+              )
+            ]
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: navIcons.map((icon) {
+            int index = navIcons.indexOf(icon);
+            bool isSelected = _selectedIndex == index;
+            return Material(
+              color: Colors.transparent,
+              child: GestureDetector(
+                onTap: (){
+                  setState(() {
+                    _selectedIndex = index;
+                  });
+                },
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Container(
+                        alignment: Alignment.center,
+                        margin: const EdgeInsets.only(
+                            top: 15,
+                            bottom:0,
+                            left: 45,
+                            right: 45
+                        ),
+                        child: Icon(icon, color: isSelected ? Colors.blue : Colors.grey),
+                      ),
+                      Text(
+                          navTitle[index],
+                          style: TextStyle(
+                              color: isSelected ? Colors.blue : Colors.grey,
+                              fontSize: 10
+                          )
+                      ),
+                      const SizedBox(height: 15)
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        )
+    );
+  }
 
   Widget _getSelectedSection() {
     switch (_selectedIndex) {
@@ -211,7 +288,6 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       _selectedIndex = index;
     });
   }
-
   Widget _buildOverviewSection() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -222,7 +298,7 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.red)));
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -230,38 +306,79 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(child: Text('No classes available'));
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.school_outlined, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text('No classes available', style: TextStyle(fontSize: 18, color: Colors.grey)),
+              ],
+            ),
+          );
         }
 
         return ListView.builder(
+          padding: const EdgeInsets.all(16),
           itemCount: snapshot.data!.docs.length,
           itemBuilder: (context, index) {
             var classData = snapshot.data!.docs[index].data() as Map<String, dynamic>;
-            return ExpansionTile(
-              title: Text(classData['name']),
-              subtitle: Text('Next class: ${_getNextClassTime(classData)}'),
-              trailing: IconButton(
-                icon: const Icon(Icons.schedule),
-                onPressed: () => _showScheduleDialog(snapshot.data!.docs[index].id, classData),
+            return Card(
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 16),
+              child: ExpansionTile(
+                tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                title: Text(
+                  classData['name'],
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                subtitle: Text(
+                  'Next class: ${_getNextClassTime(classData)}',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                leading: CircleAvatar(
+                  backgroundColor: Colors.primaries[index % Colors.primaries.length],
+                  child: Text(
+                    classData['name'][0].toUpperCase(),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                trailing: IconButton(
+                  icon: Icon(Icons.schedule, color: Theme.of(context).primaryColor),
+                  onPressed: () => _showScheduleDialog(snapshot.data!.docs[index].id, classData),
+                ),
+                children: [
+                  const Divider(height: 1),
+                  _buildActionTile(
+                    icon: Icons.checklist,
+                    title: 'Take Attendance',
+                    onTap: () => _showAttendanceSheet(snapshot.data!.docs[index].id),
+                  ),
+                  _buildActionTile(
+                    icon: Icons.grade,
+                    title: 'Manage Grades',
+                    onTap: () => _showGradesManagementDialog(snapshot.data!.docs[index].id),
+                  ),
+                  _buildActionTile(
+                    icon: Icons.assignment,
+                    title: 'Upload Assignment',
+                    onTap: () => _showUploadAssignmentDialog(snapshot.data!.docs[index].id),
+                  ),
+                ],
               ),
-              children: [
-                ListTile(
-                  title: const Text('Take Attendance'),
-                  onTap: () => _showAttendanceSheet(snapshot.data!.docs[index].id),
-                ),
-                ListTile(
-                  title: const Text('Manage Grades'),
-                  onTap: () => _showGradesManagementDialog(snapshot.data!.docs[index].id),
-                ),
-                ListTile(
-                  title: const Text('Upload Assignment'),
-                  onTap: () => _showUploadAssignmentDialog(snapshot.data!.docs[index].id),
-                ),
-              ],
             );
           },
         );
       },
+    );
+  }
+
+  Widget _buildActionTile({required IconData icon, required String title, required VoidCallback onTap}) {
+    return ListTile(
+      leading: Icon(icon, color: Theme.of(context).primaryColor),
+      title: Text(title),
+      onTap: onTap,
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
     );
   }
 
@@ -379,7 +496,7 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.red)));
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -389,43 +506,26 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: ElevatedButton(
+              padding: const EdgeInsets.all(16.0),
+              child: ElevatedButton.icon(
                 onPressed: () => _showCreateClassDialog(),
-                child: const Text('Create New Class'),
+                icon: const Icon(Icons.add),
+                label: const Text('Create New Class'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
               ),
             ),
             Expanded(
-              child: ListView.builder(
+              child: snapshot.data?.docs.isEmpty ?? true
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                padding: const EdgeInsets.all(16),
                 itemCount: snapshot.data?.docs.length ?? 0,
                 itemBuilder: (context, index) {
                   var classData = snapshot.data!.docs[index].data() as Map<String, dynamic>;
-                  return Card(
-                    margin: const EdgeInsets.all(8.0),
-                    child: Column(
-                      children: [
-                        ListTile(
-                          title: Text(classData['name']),
-                          subtitle: Text('Subject: ${classData['subject']}'),
-                        ),
-                        OverflowBar(
-                          alignment: MainAxisAlignment.center,
-                          children: [
-                            ElevatedButton(
-                              onPressed: () => _showAddStudentDialog(snapshot.data!.docs[index].id),
-                              child: const Text('Add Student'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () {
-                                // Implement view students functionality
-                              },
-                              child: const Text('View Students'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
+                  return _buildClassCard(classData, snapshot.data!.docs[index].id);
                 },
               ),
             ),
@@ -435,89 +535,114 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
-  void _showCreateClassDialog() {
-    final TextEditingController nameController = TextEditingController();
-    final TextEditingController subjectController = TextEditingController();
-    final TextEditingController codeController = TextEditingController();
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.class_outlined, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          const Text('No classes available', style: TextStyle(fontSize: 18, color: Colors.grey)),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => _showCreateClassDialog(),
+            child: const Text('Create Your First Class'),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildClassCard(Map<String, dynamic> classData, String classId) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  child: Text(
+                    classData['name'][0].toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        classData['name'],
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Subject: ${classData['subject']}',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildActionButton(
+                  icon: Icons.person_add,
+                  label: 'Add Student',
+                  onPressed: () => _showAddStudentDialog(classId),
+                ),
+                _buildActionButton(
+                  icon: Icons.people,
+                  label: 'View Students',
+                  onPressed: () => _showViewStudentsDialog(classId, classData['name']),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _showViewStudentsDialog(String classId, String className) {
+    // Implement the view students functionality here
+    // You can use a dialog or navigate to a new screen to show the list of students
+  }
+
+  void _showCreateClassDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Create New Class'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Class Name'),
-              ),
-              TextField(
-                controller: subjectController,
-                decoration: const InputDecoration(labelText: 'Subject'),
-              ),
-              TextField(
-                controller: codeController,
-                decoration: const InputDecoration(labelText: 'Class Code'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            TextButton(
-              child: const Text('Create'),
-              onPressed: () async {
-                if (nameController.text.isEmpty || subjectController.text.isEmpty || codeController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please fill in all fields')),
-                  );
-                  return;
-                }
-
-                if (schoolDocumentId == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Error: School not found')),
-                  );
-                  return;
-                }
-
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('schools')
-                      .doc(schoolDocumentId)
-                      .collection('classes')
-                      .add({
-                    'name': nameController.text,
-                    'subject': subjectController.text,
-                    'code': codeController.text,
-                    'teacherId': widget.userId,
-                    'studentIds': [],
-                    'createdAt': FieldValue.serverTimestamp(),
-                    'status': 'active',
-                  });
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Class created successfully')),
-                  );
-                } catch (e) {
-                  if (kDebugMode) {
-                    print('Error creating class: $e');
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error creating class: $e')),
-                  );
-                }
-              },
-            ),
-          ],
+        return CreateClassDialog(
+          userId: widget.userId,
+          schoolDocumentId: schoolDocumentId,
         );
       },
     );
   }
-
   void _showAddStudentDialog(String classId) {
     final TextEditingController emailController = TextEditingController();
 
@@ -876,6 +1001,145 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         );
       },
     );
+  }
+}
+
+
+
+
+class CreateClassDialog extends StatefulWidget {
+  final String userId;
+  final String? schoolDocumentId;
+
+  const CreateClassDialog({
+    Key? key,
+    required this.userId,
+    required this.schoolDocumentId,
+  }) : super(key: key);
+
+  @override
+  _CreateClassDialogState createState() => _CreateClassDialogState();
+}
+
+class _CreateClassDialogState extends State<CreateClassDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _subjectController = TextEditingController();
+  final TextEditingController _codeController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Create New Class', style: TextStyle(fontWeight: FontWeight.bold)),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildTextField(
+                controller: _nameController,
+                label: 'Class Name',
+                icon: Icons.class_,
+                validator: (value) => value!.isEmpty ? 'Please enter a class name' : null,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _subjectController,
+                label: 'Subject',
+                icon: Icons.subject,
+                validator: (value) => value!.isEmpty ? 'Please enter a subject' : null,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _codeController,
+                label: 'Class Code',
+                icon: Icons.code,
+                validator: (value) => value!.isEmpty ? 'Please enter a class code' : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        ElevatedButton(
+          child: Text('Create'),
+          style: ElevatedButton.styleFrom(
+            foregroundColor: Colors.white, backgroundColor: Theme.of(context).primaryColor,
+          ),
+          onPressed: _submitForm,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required String? Function(String?) validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        filled: true,
+        fillColor: Colors.grey[100],
+      ),
+      validator: validator,
+    );
+  }
+
+  void _submitForm() async {
+    if (_formKey.currentState!.validate()) {
+      if (widget.schoolDocumentId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: School not found')),
+        );
+        return;
+      }
+
+      try {
+        await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(widget.schoolDocumentId)
+            .collection('classes')
+            .add({
+          'name': _nameController.text,
+          'subject': _subjectController.text,
+          'code': _codeController.text,
+          'teacherId': widget.userId,
+          'studentIds': [],
+          'createdAt': FieldValue.serverTimestamp(),
+          'status': 'active',
+        });
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Class created successfully')),
+        );
+      } catch (e) {
+        print('Error creating class: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error creating class: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _subjectController.dispose();
+    _codeController.dispose();
+    super.dispose();
   }
 }
 

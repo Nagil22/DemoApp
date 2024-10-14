@@ -88,6 +88,15 @@ class MyApp extends StatelessWidget {
           theme: ThemeData(
             scaffoldBackgroundColor: const Color(0xFFEFEFEF),
             primarySwatch: Colors.blue,
+            cardTheme: CardTheme(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            dividerTheme: DividerThemeData(
+              space: 1,
+              thickness: 1,
+              color: Colors.grey[300],
+            ),
             textTheme: const TextTheme(
               displayLarge: TextStyle(fontSize: 72.0, fontWeight: FontWeight.bold),
               titleLarge: TextStyle(fontSize: 36.0, fontStyle: FontStyle.italic),
