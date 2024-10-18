@@ -1,16 +1,16 @@
-# demo
+# DemoApp (Mulit Management System)
 
-A new Flutter project.
+## About
+DemoApp is a management system developed using Flutter and Firebase focusing on school aspect at the moment(still in development). This project demonstrates the potential for creating complex, multi-user applications with limited resources, serving as both a functional tool and an educational showcase.
 
-## Getting Started
+## Key Features
+- Multi-role user system (Students, Parents, Teachers, Administrators)
+- Real-time notifications and updates
+- Grade and attendance tracking
+- Parent-child account linking
+- Absentee form submission
+- Secure authentication and data management
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Technical Stack
+- Frontend: Flutter
+- Backend: Firebase (Firestore, Authentication)
