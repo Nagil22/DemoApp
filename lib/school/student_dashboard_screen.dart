@@ -23,6 +23,20 @@ class StudentDashboardScreen extends StatefulWidget {
   StudentDashboardScreenState createState() => StudentDashboardScreenState();
 }
 
+List<IconData> navIcons = [
+  Icons.dashboard,
+  Icons.assignment,
+  Icons.payment,
+  Icons.person,
+];
+List<String> navTitle = [
+  "Overview",
+  "Assignments",
+  "Payments",
+  "Profile"
+];
+
+
 class StudentDashboardScreenState extends State<StudentDashboardScreen> {
   int _selectedIndex = 0;
   Color _accentColor = Colors.blue;
@@ -98,8 +112,15 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
       ),
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Welcome, ${widget.username}'),
-          backgroundColor: _accentColor,
+          title: Text(
+              'Welcome, ${widget.username}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 20
+              )
+          ),
+          // backgroundColor: _accentColor,
           actions: [
             Stack(
               children: [
@@ -135,21 +156,11 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ),
           ],
         ),
-        body: _getSelectedSection(),
-        bottomNavigationBar: BottomNavigationBar(
-          items: const <BottomNavigationBarItem>[
-            BottomNavigationBarItem(
-                icon: Icon(Icons.dashboard), label: 'Overview'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.assignment), label: 'Assignments'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.payment), label: 'Payments'),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          ],
-          currentIndex: _selectedIndex,
-          selectedItemColor: _accentColor,
-          unselectedItemColor: Colors.grey,
-          onTap: _onItemTapped,
+        body: Stack(
+          children: [
+            _getSelectedSection(),
+            Align(alignment: Alignment.bottomCenter, child: _navBar())
+        ]
         ),
       ),
     );
@@ -159,6 +170,70 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  Widget _navBar(){
+    return Container(
+        height: 65,
+        margin: const EdgeInsets.only(
+            right: 24,
+            left: 24,
+            bottom: 24
+        ),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withAlpha(20),
+                  blurRadius: 20,
+                  spreadRadius: 10
+              )
+            ]
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: navIcons.map((icon) {
+            int index = navIcons.indexOf(icon);
+            bool isSelected = _selectedIndex == index;
+            return Material(
+              color: Colors.transparent,
+              child: GestureDetector(
+                onTap: (){
+                  setState(() {
+                    _selectedIndex = index;
+                  });
+                },
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Container(
+                        alignment: Alignment.center,
+                        margin: const EdgeInsets.only(
+                            top: 15,
+                            bottom:0,
+                            left: 30,
+                            right: 30
+                        ),
+                        child: Icon(icon, color: isSelected ? Colors.blue : Colors.grey),
+                      ),
+                      Text(
+                          navTitle[index],
+                          style: TextStyle(
+                              color: isSelected ? Colors.blue : Colors.grey,
+                              fontSize: 10
+                          )
+                      ),
+                      const SizedBox(height: 15)
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        )
+    );
   }
 
   Widget _getSelectedSection() {
