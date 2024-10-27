@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:demo/screens/profile_screen.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
+import '../dash_screens/messaging_screen.dart';
+
 
 class TeacherDashboardScreen extends StatefulWidget {
   final String username;
@@ -42,6 +45,10 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   String? schoolDocumentId;
   int notificationCount = 0;
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  int _unreadMessageCount = 0;
+
+
+  final String userType = 'teacher';
 
 
   @override
@@ -51,6 +58,7 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     _fetchSchoolDocumentId();
     _initializeNotifications();
     _listenToNotifications();
+    _listenToUnreadMessages();
   }
 
   void _listenToAccentColorChanges() {
@@ -64,11 +72,69 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         final accentColorHex = data['teacherAccent'] as String?;
         if (accentColorHex != null) {
           setState(() {
-            _accentColor = Color(int.parse(accentColorHex.substring(1), radix: 16) + 0xFF000000);
+            _accentColor = Color(
+                int.parse(accentColorHex.substring(1), radix: 16) + 0xFF000000);
           });
         }
       }
     });
+  }
+
+  void _listenToUnreadMessages() {
+    FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolCode)
+        .collection('messages')
+        .where('recipientId', isEqualTo: widget.userId)
+        .where('read', isEqualTo: false)
+        .snapshots()
+        .listen((snapshot) {
+      setState(() {
+        _unreadMessageCount = snapshot.docs.length;
+      });
+    }, onError: (error) {
+      if (kDebugMode) {
+        print('Error listening to messages: $error');
+      }
+    });
+  }
+
+
+  void _showCommunicationHubDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Communication Hub'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close the dialog
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) =>
+                        UniversalMessagingScreen(
+                          userId: widget.userId,
+                          schoolId: widget.schoolCode,
+                          userType: userType,
+                          username: widget.username,
+                        ),
+                  ));
+                },
+                child: Text('Messages ($_unreadMessageCount unread)'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -92,7 +158,7 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             Stack(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.notifications,color: Colors.black),
+                  icon: const Icon(Icons.notifications, color: Colors.black),
                   onPressed: _showNotificationsDialog,
                 ),
                 if (notificationCount > 0)
@@ -111,6 +177,39 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       ),
                       child: Text(
                         '$notificationCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            // Add Communication Hub icon
+            Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.message, color: Colors.black),
+                  onPressed: _showCommunicationHubDialog,
+                ),
+                if (_unreadMessageCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '$_unreadMessageCount ',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
@@ -180,8 +279,10 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   void _initializeNotifications() async {
     tz.initializeTimeZones();
-    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('app_icon');
-    const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings(
+        'app_icon');
+    const InitializationSettings initializationSettings = InitializationSettings(
+        android: initializationSettingsAndroid);
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
@@ -264,6 +365,43 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
+  Future<void> _notifyStudents(String classId, String title, String body) async {
+    try {
+      DocumentSnapshot classDoc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolDocumentId)
+          .collection('classes')
+          .doc(classId)
+          .get();
+
+      if (!classDoc.exists) return;
+
+      var classData = classDoc.data() as Map<String, dynamic>;
+      var studentIds = List<String>.from(classData['studentIds'] ?? []);
+
+      await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolDocumentId)
+          .collection('notifications')
+          .add({
+        'title': title,
+        'body': body,
+        'recipients': studentIds,
+        'read': false,
+        'timestamp': FieldValue.serverTimestamp(),
+        'type': 'academic',
+        'classId': classId,
+        'teacherId': widget.userId,
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error sending notification: $e');
+      }
+    }
+  }
+
+
+
   Widget _getSelectedSection() {
     switch (_selectedIndex) {
       case 0:
@@ -283,11 +421,6 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     }
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
   Widget _buildOverviewSection() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -298,7 +431,7 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.red)));
+          return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -365,8 +498,7 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                     onTap: () => _showUploadAssignmentDialog(snapshot.data!.docs[index].id),
                   ),
                 ],
-              ),
-            );
+              ));
           },
         );
       },
@@ -452,7 +584,8 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Class schedule updated and notification set')),
+                  const SnackBar(content: Text(
+                      'Class schedule updated and notification set')),
                 );
               },
             ),
@@ -461,8 +594,106 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       },
     );
   }
+
   void _showNotificationsDialog() {
-    // Implement a dialog or a new screen to show notifications
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery
+                  .of(context)
+                  .size
+                  .width * 0.9,
+              maxHeight: MediaQuery
+                  .of(context)
+                  .size
+                  .height * 0.8,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text('Notifications', style: Theme
+                      .of(context)
+                      .textTheme
+                      .titleLarge),
+                ),
+                Flexible(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('schools')
+                        .doc(schoolDocumentId)
+                        .collection('notifications')
+                        .where('recipients', arrayContains: widget.userId)
+                        .orderBy('timestamp', descending: true)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return const Text('Something went wrong');
+                      }
+
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const CircularProgressIndicator();
+                      }
+
+                      return ListView(
+                        shrinkWrap: true,
+                        children: snapshot.data!.docs.map((
+                            DocumentSnapshot document) {
+                          Map<String, dynamic> data = document.data() as Map<
+                              String,
+                              dynamic>;
+                          return ListTile(
+                            title: Text(data['title']),
+                            subtitle: Text(data['body']),
+                            trailing: data['read'] == false
+                                ? ElevatedButton(
+                              onPressed: () =>
+                                  _markNotificationAsRead(document.id),
+                              child: const Text('Mark as Read'),
+                            )
+                                : null,
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+                ),
+                TextButton(
+                  child: const Text('Close'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _markNotificationAsRead(String notificationId) {
+    FirebaseFirestore.instance
+        .collection('schools')
+        .doc(schoolDocumentId)
+        .collection('notifications')
+        .doc(notificationId)
+        .update({'read': true}).then((_) {
+      setState(() {
+        notificationCount = notificationCount > 0 ? notificationCount - 1 : 0;
+      });
+    }).catchError((error) {
+      if (kDebugMode) {
+        print("Error marking notification as read: $error");
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error marking notification as read: $error')),
+      );
+    });
   }
 
   void _scheduleClassNotification(String className, DateTime classTime) {
@@ -470,7 +701,8 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       0,
       'Class Reminder',
       '$className is about to start',
-      tz.TZDateTime.from(classTime.subtract(const Duration(minutes: 5)), tz.local),
+      tz.TZDateTime.from(
+          classTime.subtract(const Duration(minutes: 5)), tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'class_channel_id',
@@ -480,8 +712,249 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation
+          .absoluteTime,
     );
+  }
+
+  void _showViewStudentsDialog(String classId, String className) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Students in $className'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('schools')
+                  .doc(schoolDocumentId)
+                  .collection('classes')
+                  .doc(classId)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || !snapshot.data!.exists) {
+                  return const Text('No students found');
+                }
+
+                var classData = snapshot.data!.data() as Map<String, dynamic>;
+                var studentIds = List<String>.from(
+                    classData['studentIds'] ?? []);
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: studentIds.length,
+                  itemBuilder: (context, index) {
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance.collection('users')
+                          .doc(studentIds[index])
+                          .get(),
+                      builder: (context, studentSnapshot) {
+                        if (!studentSnapshot.hasData) {
+                          return const LinearProgressIndicator();
+                        }
+
+                        var studentData = studentSnapshot.data!.data() as Map<
+                            String,
+                            dynamic>;
+                        return ListTile(
+                          title: Text(studentData['name'] ?? 'Unknown'),
+                          subtitle: Text(studentData['email'] ?? 'No email'),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showCreateClassDialog() {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController();
+    final subjectController = TextEditingController();
+    final codeController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Create New Class'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Class Name'),
+                  validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                ),
+                TextFormField(
+                  controller: subjectController,
+                  decoration: const InputDecoration(labelText: 'Subject'),
+                  validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                ),
+                TextFormField(
+                  controller: codeController,
+                  decoration: const InputDecoration(labelText: 'Class Code'),
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) return 'Required';
+                    if (value!.length < 4) return 'Code must be at least 4 characters';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            TextButton(
+              child: const Text('Create'),
+              onPressed: () => _handleCreateClass(
+                dialogContext,
+                formKey,
+                nameController.text,
+                subjectController.text,
+                codeController.text,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _handleCreateClass(
+      BuildContext dialogContext,
+      GlobalKey<FormState> formKey,
+      String name,
+      String subject,
+      String code,
+      ) async {
+    if (!formKey.currentState!.validate()) return;
+
+    try {
+      // Check if class code already exists
+      var existingClasses = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolDocumentId)
+          .collection('classes')
+          .where('code', isEqualTo: code)
+          .get();
+
+      if (existingClasses.docs.isNotEmpty) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Class code already exists')),
+        );
+        return;
+      }
+
+      await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolDocumentId)
+          .collection('classes')
+          .add({
+        'name': name,
+        'subject': subject,
+        'code': code,
+        'teacherId': widget.userId,
+        'studentIds': [],
+        'createdAt': FieldValue.serverTimestamp(),
+        'status': 'active',
+      });
+
+      if (!context.mounted) return;
+      Navigator.of(dialogContext).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Class created successfully')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error creating class: $e')),
+      );
+    }
+  }
+
+  void _showAddStudentDialog(String classId) {
+    final emailController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Add Student'),
+          content: TextField(
+            controller: emailController,
+            decoration: const InputDecoration(labelText: 'Student Email'),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            TextButton(
+              child: const Text('Add'),
+              onPressed: () => _handleAddStudent(dialogContext, classId, emailController.text),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _handleAddStudent(
+      BuildContext dialogContext,
+      String classId,
+      String email,
+      ) async {
+    try {
+      final studentSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .where('schoolCode', isEqualTo: widget.schoolCode)
+          .where('role', isEqualTo: 'student')
+          .get();
+
+      if (!context.mounted) return;
+
+      if (studentSnapshot.docs.isNotEmpty) {
+        final studentId = studentSnapshot.docs.first.id;
+        await addStudentToClass(classId, studentId);
+        Navigator.of(dialogContext).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Student added successfully')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Student not found or not eligible')),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding student: $e')),
+      );
+    }
   }
 
 
@@ -496,12 +969,14 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.red)));
+          return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
+
+        var classes = snapshot.data?.docs ?? [];
 
         return Column(
           children: [
@@ -518,14 +993,14 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               ),
             ),
             Expanded(
-              child: snapshot.data?.docs.isEmpty ?? true
+              child: classes.isEmpty
                   ? _buildEmptyState()
                   : ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: snapshot.data?.docs.length ?? 0,
+                itemCount: classes.length,
                 itemBuilder: (context, index) {
-                  var classData = snapshot.data!.docs[index].data() as Map<String, dynamic>;
-                  return _buildClassCard(classData, snapshot.data!.docs[index].id);
+                  var classData = classes[index].data() as Map<String, dynamic>;
+                  return _buildClassCard(classData, classes[index].id);
                 },
               ),
             ),
@@ -593,12 +1068,12 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildActionButton(
+                _buildClassActionButton(
                   icon: Icons.person_add,
                   label: 'Add Student',
                   onPressed: () => _showAddStudentDialog(classId),
                 ),
-                _buildActionButton(
+                _buildClassActionButton(
                   icon: Icons.people,
                   label: 'View Students',
                   onPressed: () => _showViewStudentsDialog(classId, classData['name']),
@@ -611,89 +1086,266 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onPressed,
-  }) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
+    Widget _buildClassActionButton({
+      required IconData icon,
+      required String label,
+      required VoidCallback onPressed,
+    }) {
+      return ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
+      );
+    }
 
-  void _showViewStudentsDialog(String classId, String className) {
-    // Implement the view students functionality here
-    // You can use a dialog or navigate to a new screen to show the list of students
-  }
+  void _showAttendanceSheet(String classId) {
+    Map<String, bool> attendanceStatus = {};
+    DateTime selectedDate = DateTime.now();
 
-  void _showCreateClassDialog() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (BuildContext context) {
-        return CreateClassDialog(
-          userId: widget.userId,
-          schoolDocumentId: schoolDocumentId,
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Container(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery
+                    .of(context)
+                    .viewInsets
+                    .bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Take Attendance',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            final DateTime? picked = await showDatePicker(
+                              context: context,
+                              initialDate: selectedDate,
+                              firstDate: DateTime.now().subtract(
+                                  const Duration(days: 7)),
+                              lastDate: DateTime.now(),
+                            );
+                            if (picked != null) {
+                              setState(() {
+                                selectedDate = picked;
+                              });
+                            }
+                          },
+                          child: Text(
+                            'Date: ${DateFormat('MMM d, y').format(
+                                selectedDate)}',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('schools')
+                          .doc(schoolDocumentId)
+                          .collection('classes')
+                          .doc(classId)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+
+                        var classData = snapshot.data!.data() as Map<
+                            String,
+                            dynamic>;
+                        var studentIds = List<String>.from(
+                            classData['studentIds'] ?? []);
+
+                        return ListView.builder(
+                          itemCount: studentIds.length,
+                          itemBuilder: (context, index) {
+                            return FutureBuilder<DocumentSnapshot>(
+                              future: FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(studentIds[index])
+                                  .get(),
+                              builder: (context, studentSnapshot) {
+                                if (!studentSnapshot.hasData) {
+                                  return const ListTile(
+                                    title: LinearProgressIndicator(),
+                                  );
+                                }
+
+                                var studentData = studentSnapshot.data!
+                                    .data() as Map<String, dynamic>;
+                                String studentId = studentSnapshot.data!.id;
+
+                                // Initialize status if not set
+                                attendanceStatus[studentId] ??= false;
+
+                                return CheckboxListTile(
+                                  title: Text(studentData['name'] ?? 'Unknown'),
+                                  subtitle: Text(studentData['email'] ?? ''),
+                                  value: attendanceStatus[studentId],
+                                  onChanged: (bool? value) {
+                                    setState(() {
+                                      attendanceStatus[studentId] =
+                                          value ?? false;
+                                    });
+                                  },
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () =>
+                              _saveAttendance(
+                                classId,
+                                attendanceStatus,
+                                selectedDate,
+                              ),
+                          child: const Text('Save Attendance'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
   }
-  void _showAddStudentDialog(String classId) {
-    final TextEditingController emailController = TextEditingController();
 
+  Future<void> _saveAttendance(
+      String classId,
+      Map<String, bool> attendanceStatus,
+      DateTime date,
+      ) async {
+    try {
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      attendanceStatus.forEach((studentId, isPresent) {
+        DocumentReference attendanceRef = FirebaseFirestore.instance
+            .collection('schools')
+            .doc(schoolDocumentId)
+            .collection('attendance')
+            .doc();
+
+        batch.set(attendanceRef, {
+          'classId': classId,
+          'studentId': studentId,
+          'date': Timestamp.fromDate(DateTime(date.year, date.month, date.day)),
+          'status': isPresent ? 'present' : 'absent',
+          'markedBy': widget.userId,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      });
+
+      await batch.commit();
+
+      // Add notification after saving attendance
+      await _notifyStudents(
+        classId,
+        'Attendance Updated',
+        'Attendance has been marked for ${DateFormat('MMM d, y').format(date)}',
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Attendance saved successfully')),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error saving attendance: $e');
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving attendance: $e')),
+        );
+      }
+    }
+  }
+
+  void _showGradesManagementDialog(String classId) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Add Student'),
-          content: TextField(
-            controller: emailController,
-            decoration: const InputDecoration(labelText: 'Student Email'),
+          title: const Text('Grade Management'),
+          contentPadding: const EdgeInsets.all(16),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.9,  // Fix for double.MaxWidth error
+            child: DefaultTabController(
+              length: 2,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const TabBar(
+                    labelColor: Colors.black,  // Added for visibility
+                    tabs: [
+                      Tab(text: 'Add Grades'),
+                      Tab(text: 'View/Edit Grades'),
+                    ],
+                  ),
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.5,
+                    child: TabBarView(
+                      children: [
+                        _buildAddGradesTab(classId),
+                        _buildViewGradesTab(classId),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            TextButton(
-              child: const Text('Add'),
-              onPressed: () async {
-                final studentSnapshot = await FirebaseFirestore.instance
-                    .collection('users')
-                    .where('email', isEqualTo: emailController.text)
-                    .where('schoolCode', isEqualTo: widget.schoolCode)
-                    .where('role', isEqualTo: 'student')
-                    .get();
-
-                if (studentSnapshot.docs.isNotEmpty) {
-                  final studentId = studentSnapshot.docs.first.id;
-                  await addStudentToClass(classId, studentId);
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Student added successfully')),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Student not found or not eligible')),
-                  );
-                }
-              },
-            ),
-          ],
         );
       },
     );
   }
 
-  void _showAttendanceSheet(String classId) {
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
+  Widget _buildAddGradesTab(String classId) {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+    String selectedType = 'homework';
+    final Map<String, TextEditingController> studentGradeControllers = {};
+
+    return StatefulBuilder(
+      builder: (context, setState) {
         return StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance
               .collection('schools')
@@ -702,41 +1354,174 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               .doc(classId)
               .snapshots(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData) return const CircularProgressIndicator();
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
             var classData = snapshot.data!.data() as Map<String, dynamic>;
             var studentIds = List<String>.from(classData['studentIds'] ?? []);
 
-            return Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: studentIds.length,
-                    itemBuilder: (context, index) {
+            return SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextFormField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: 'Assignment Name'),
+                      validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(labelText: 'Description'),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: selectedType,
+                      decoration: const InputDecoration(labelText: 'Assignment Type'),
+                      items: ['homework', 'quiz', 'exam', 'project']
+                          .map((type) => DropdownMenuItem(
+                        value: type,
+                        child: Text(type.toUpperCase()),
+                      ))
+                          .toList(),
+                      onChanged: (value) => setState(() => selectedType = value!),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Student Grades',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    ...studentIds.map((studentId) {
+                      studentGradeControllers[studentId] ??= TextEditingController();
                       return FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance.collection('users').doc(studentIds[index]).get(),
+                        future: FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(studentId)
+                            .get(),
                         builder: (context, studentSnapshot) {
-                          if (!studentSnapshot.hasData) return const CircularProgressIndicator();
+                          if (!studentSnapshot.hasData) {
+                            return const LinearProgressIndicator();
+                          }
 
-                          var studentData = studentSnapshot.data!.data() as Map<String, dynamic>;
-                          return CheckboxListTile(
-                            title: Text(studentData['name']),
-                            value: false,
-                            onChanged: (bool? value) {
-                              // TODO: Update attendance status
-                            },
+                          var studentData = studentSnapshot.data!.data()
+                          as Map<String, dynamic>;
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(studentData['name'] ?? 'Unknown'),
+                                ),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: studentGradeControllers[studentId],
+                                    decoration: const InputDecoration(
+                                      labelText: 'Grade',
+                                      suffixText: '/100',
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    validator: (value) {
+                                      if (value?.isEmpty ?? true) return 'Required';
+                                      final grade = int.tryParse(value!);
+                                      if (grade == null || grade < 0 || grade > 100) {
+                                        return 'Invalid';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
                           );
                         },
                       );
-                    },
-                  ),
+                    }),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (formKey.currentState?.validate() ?? false) {
+                          await _saveGrades(
+                            classId,
+                            nameController.text,
+                            descriptionController.text,
+                            selectedType,
+                            studentGradeControllers,
+                          );
+                          if (context.mounted) {
+                            Navigator.of(context).pop();
+                          }
+                        }
+                      },
+                      child: const Text('Save Grades'),
+                    ),
+                  ],
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    // TODO: Save attendance
-                    Navigator.pop(context);
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildViewGradesTab(String classId) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolDocumentId)
+          .collection('grades')
+          .where('classId', isEqualTo: classId)
+          .orderBy('date', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        var grades = snapshot.data!.docs;
+        if (grades.isEmpty) {
+          return const Center(child: Text('No grades available'));
+        }
+
+        return ListView.builder(
+          itemCount: grades.length,
+          itemBuilder: (context, index) {
+            var gradeData = grades[index].data() as Map<String, dynamic>;
+            return ExpansionTile(
+              title: Text(gradeData['assignmentName']),
+              subtitle: Text('Type: ${gradeData['type'].toUpperCase()}'),
+              children: [
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(gradeData['studentId'])
+                      .snapshots(),
+                  builder: (context, studentSnapshot) {
+                    if (!studentSnapshot.hasData) {
+                      return const LinearProgressIndicator();
+                    }
+
+                    var studentData = studentSnapshot.data!.data()
+                    as Map<String, dynamic>;
+
+                    return ListTile(
+                      title: Text(studentData['name'] ?? 'Unknown'),
+                      subtitle: Text('Grade: ${gradeData['score']}/100'),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () => _editGrade(
+                          context,
+                          grades[index].id,
+                          gradeData,
+                        ),
+                      ),
+                    );
                   },
-                  child: const Text('Save Attendance'),
                 ),
               ],
             );
@@ -746,263 +1531,288 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
-  void _showGradesManagementDialog(String classId) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Manage Grades'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton(
-                onPressed: () => _showAddGradeDialog(classId),
-                child: const Text('Add New Grade'),
-              ),
-              ElevatedButton(
-                onPressed: () => _showViewGradesSheet(classId),
-                child: const Text('View/Edit Grades'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  Future<void> _saveGrades(
+      String classId,
+      String assignmentName,
+      String description,
+      String type,
+      Map<String, TextEditingController> studentGrades,
+      ) async {
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+      final timestamp = FieldValue.serverTimestamp();
 
-
-  void _showAddGradeDialog(String classId) {
-    final TextEditingController assignmentNameController = TextEditingController();
-    final TextEditingController totalScoreController = TextEditingController();
-    String selectedType = 'homework';
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Add New Grade'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: assignmentNameController,
-                decoration: const InputDecoration(labelText: 'Assignment Name'),
-              ),
-              TextField(
-                controller: totalScoreController,
-                decoration: const InputDecoration(labelText: 'Total Possible Score'),
-                keyboardType: TextInputType.number,
-              ),
-              DropdownButton<String>(
-                value: selectedType,
-                items: ['homework', 'quiz', 'exam', 'project']
-                    .map((String value) => DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                ))
-                    .toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    selectedType = newValue;
-                  }
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            TextButton(
-              child: const Text('Add'),
-              onPressed: () async {
-                // Add the new grade to Firestore
-                await FirebaseFirestore.instance
-                    .collection('schools')
-                    .doc(schoolDocumentId)
-                    .collection('grades')
-                    .add({
-                  'classId': classId,
-                  'assignmentName': assignmentNameController.text,
-                  'totalPossibleScore': int.parse(totalScoreController.text),
-                  'type': selectedType,
-                  'date': Timestamp.now(),
-                });
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('New grade added successfully')),
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showViewGradesSheet(String classId) {
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
+      studentGrades.forEach((studentId, controller) {
+        if (controller.text.isNotEmpty) {
+          final gradeRef = FirebaseFirestore.instance
               .collection('schools')
               .doc(schoolDocumentId)
               .collection('grades')
-              .where('classId', isEqualTo: classId)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) return const CircularProgressIndicator();
+              .doc();
 
-            var grades = snapshot.data!.docs;
+          batch.set(gradeRef, {
+            'classId': classId,
+            'studentId': studentId,
+            'assignmentName': assignmentName,
+            'description': description,
+            'type': type,
+            'score': int.parse(controller.text),
+            'date': timestamp,
+            'teacherId': widget.userId,
+          });
+        }
+      });
 
-            return Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: grades.length,
-                    itemBuilder: (context, index) {
-                      var gradeData = grades[index].data() as Map<String, dynamic>;
-                      return ListTile(
-                        title: Text(gradeData['assignmentName']),
-                        subtitle: Text('Type: ${gradeData['type']} | Total Score: ${gradeData['totalPossibleScore']}'),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => _showEditGradeDialog(grades[index].id, gradeData),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
+      await batch.commit();
+
+      // Add notification after saving grades
+      await _notifyStudents(
+        classId,
+        'New Grades Posted',
+        'Grades for $assignmentName have been posted',
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Grades saved successfully')),
         );
-      },
-    );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving grades: $e')),
+        );
+      }
+    }
   }
 
-  void _showEditGradeDialog(String gradeId, Map<String, dynamic> gradeData) {
-    final TextEditingController assignmentNameController = TextEditingController(text: gradeData['assignmentName']);
-    final TextEditingController totalScoreController = TextEditingController(text: gradeData['totalPossibleScore'].toString());
-    String selectedType = gradeData['type'];
+  void _editGrade(
+      BuildContext context,
+      String gradeId,
+      Map<String, dynamic> gradeData,
+      ) {
+    final scoreController = TextEditingController(
+      text: gradeData['score'].toString(),
+    );
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Edit Grade'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: assignmentNameController,
-                decoration: const InputDecoration(labelText: 'Assignment Name'),
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Grade'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Assignment: ${gradeData['assignmentName']}'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: scoreController,
+              decoration: const InputDecoration(
+                labelText: 'Score',
+                suffixText: '/100',
               ),
-              TextField(
-                controller: totalScoreController,
-                decoration: const InputDecoration(labelText: 'Total Possible Score'),
-                keyboardType: TextInputType.number,
-              ),
-              DropdownButton<String>(
-                value: selectedType,
-                items: ['homework', 'quiz', 'exam', 'project']
-                    .map((String value) => DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                ))
-                    .toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    selectedType = newValue;
-                  }
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
+              keyboardType: TextInputType.number,
             ),
-            TextButton(
-              child: const Text('Save'),
-              onPressed: () async {
-                // Update the grade in Firestore
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          TextButton(
+            child: const Text('Save'),
+            onPressed: () async {
+              try {
                 await FirebaseFirestore.instance
                     .collection('schools')
                     .doc(schoolDocumentId)
                     .collection('grades')
                     .doc(gradeId)
                     .update({
-                  'assignmentName': assignmentNameController.text,
-                  'totalPossibleScore': int.parse(totalScoreController.text),
-                  'type': selectedType,
+                  'score': int.parse(scoreController.text),
+                  'lastModified': FieldValue.serverTimestamp(),
                 });
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Grade updated successfully')),
-                );
-              },
-            ),
-          ],
-        );
-      },
+
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Grade updated successfully')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error updating grade: $e')),
+                  );
+                }
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
-
 
   void _showUploadAssignmentDialog(String classId) {
     final TextEditingController nameController = TextEditingController();
     final TextEditingController descriptionController = TextEditingController();
+    DateTime dueDate = DateTime.now().add(const Duration(days: 7));
+    String selectedType = 'homework';
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Upload Assignment'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Assignment Name'),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('New Assignment'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                          labelText: 'Assignment Name'),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(
+                          labelText: 'Description'),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButton<String>(
+                      value: selectedType,
+                      isExpanded: true,
+                      items: ['homework', 'quiz', 'project', 'exam']
+                          .map((type) =>
+                          DropdownMenuItem(
+                            value: type,
+                            child: Text(type.toUpperCase()),
+                          ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() => selectedType = value!);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    ListTile(
+                      title: const Text('Due Date'),
+                      subtitle: Text(DateFormat('MMM d, y').format(dueDate)),
+                      trailing: const Icon(Icons.calendar_today),
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: dueDate,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(
+                              const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setState(() => dueDate = picked);
+                        }
+                      },
+                    ),
+                  ],
+                ),
               ),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(labelText: 'Description'),
-              ),
-              // TODO: Add file upload functionality
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            TextButton(
-              child: const Text('Upload'),
-              onPressed: () async {
-                // TODO: Implement assignment upload logic
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Assignment uploaded successfully')),
-                );
-              },
-            ),
-          ],
+              actions: [
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                ElevatedButton(
+                  child: const Text('Create'),
+                  onPressed: () =>
+                      _createAssignment(
+                        classId,
+                        nameController.text,
+                        descriptionController.text,
+                        selectedType,
+                        dueDate,
+                      ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
-}
+
+  Future<void> _createAssignment(
+      String classId,
+      String name,
+      String description,
+      String type,
+      DateTime dueDate,
+      ) async {
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter an assignment name')),
+      );
+      return;
+    }
+
+    try {
+      DocumentSnapshot classDoc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolDocumentId)
+          .collection('classes')
+          .doc(classId)
+          .get();
+
+      if (!classDoc.exists) {
+        throw Exception('Class not found');
+      }
+
+      var classData = classDoc.data() as Map<String, dynamic>;
+      List<String> studentIds = List<String>.from(classData['studentIds'] ?? []);
+
+      // Create the assignment
+      await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolDocumentId)
+          .collection('assignments')
+          .add({
+        'name': name,
+        'description': description,
+        'type': type,
+        'classId': classId,
+        'teacherId': widget.userId,
+        'dueDate': Timestamp.fromDate(dueDate),
+        'createdAt': FieldValue.serverTimestamp(),
+        'studentIds': studentIds,
+        'submissions': {},
+        'status': 'active',
+      });
+
+      // Add notification after creating assignment
+      await _notifyStudents(
+        classId,
+        'New Assignment',
+        'A new $type assignment: $name has been posted',
+      );
+
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Assignment created successfully')),
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error creating assignment: $e');
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error creating assignment: $e')),
+        );
+      }
+    }
+  }}
 
 
 
@@ -1012,16 +1822,16 @@ class CreateClassDialog extends StatefulWidget {
   final String? schoolDocumentId;
 
   const CreateClassDialog({
-    Key? key,
+    super.key,
     required this.userId,
     required this.schoolDocumentId,
-  }) : super(key: key);
+  });
 
   @override
-  _CreateClassDialogState createState() => _CreateClassDialogState();
+  CreateClassDialogState createState() => CreateClassDialogState();
 }
 
-class _CreateClassDialogState extends State<CreateClassDialog> {
+class CreateClassDialogState extends State<CreateClassDialog> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _subjectController = TextEditingController();
@@ -1067,11 +1877,11 @@ class _CreateClassDialogState extends State<CreateClassDialog> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         ElevatedButton(
-          child: Text('Create'),
           style: ElevatedButton.styleFrom(
             foregroundColor: Colors.white, backgroundColor: Theme.of(context).primaryColor,
           ),
           onPressed: _submitForm,
+          child: const Text('Create'),
         ),
       ],
     );
@@ -1102,7 +1912,7 @@ class _CreateClassDialogState extends State<CreateClassDialog> {
     if (_formKey.currentState!.validate()) {
       if (widget.schoolDocumentId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: School not found')),
+          const SnackBar(content: Text('Error: School not found')),
         );
         return;
       }
@@ -1123,10 +1933,12 @@ class _CreateClassDialogState extends State<CreateClassDialog> {
         });
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Class created successfully')),
+          const SnackBar(content: Text('Class created successfully')),
         );
       } catch (e) {
-        print('Error creating class: $e');
+        if (kDebugMode) {
+          print('Error creating class: $e');
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error creating class: $e')),
         );

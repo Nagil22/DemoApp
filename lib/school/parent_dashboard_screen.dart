@@ -1,9 +1,10 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../screens/profile_screen.dart';
 import '../dash_screens/payments_screen.dart';
+import '../dash_screens/messaging_screen.dart';
 
 class ParentDashboardScreen extends StatefulWidget {
   final String username;
@@ -23,30 +24,85 @@ class ParentDashboardScreen extends StatefulWidget {
   ParentDashboardScreenState createState() => ParentDashboardScreenState();
 }
 
+
 class ParentDashboardScreenState extends State<ParentDashboardScreen> {
   int _selectedIndex = 0;
-  List<String> _childrenIds = [];
   String? _selectedChildId;
+  List<Map<String, dynamic>> _children = [];
   Color _accentColor = Colors.blue;
   int notificationCount = 0;
+  bool _isLoading = true;
+  late int _unreadMessageCount = 0;
+
+
+  final String userType = 'parent';
 
   @override
   void initState() {
     super.initState();
-    _fetchChildrenIds();
+    _fetchChildren();
     _listenToAccentColorChanges();
     _listenToNotifications();
+    _listenToUnreadMessages();
   }
 
   // Fetches the list of children IDs associated with the parent
 
-  Future<void> _fetchChildrenIds() async {
-    // Fetch the list of children IDs for the current parent user
-    Map<String, dynamic> userData = await _getUserData();
+  Future<void> _fetchChildren() async {
     setState(() {
-      _childrenIds = List<String>.from(userData['childrenIds'] ?? []);
+      _isLoading = true;
     });
+
+    try {
+      // First get the parent's user document to get childrenIds
+      DocumentSnapshot parentDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
+
+      if (!parentDoc.exists) {
+        throw Exception('Parent user document not found');
+      }
+
+      var parentData = parentDoc.data() as Map<String, dynamic>;
+      List<String> childrenIds = List<String>.from(
+          parentData['childrenIds'] ?? []);
+
+      // Fetch each child's data
+      List<Map<String, dynamic>> children = [];
+      for (String childId in childrenIds) {
+        DocumentSnapshot childDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(childId)
+            .get();
+
+        if (childDoc.exists) {
+          var childData = childDoc.data() as Map<String, dynamic>;
+          childData['id'] = childId;
+          children.add(childData);
+        }
+      }
+
+      setState(() {
+        _children = children;
+        if (_children.isNotEmpty) {
+          _selectedChildId = _children[0]['id'];
+        }
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching children: $e');
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching children data: $e')),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
+
 
   // Listens to changes in the school's accent color
   void _listenToAccentColorChanges() {
@@ -60,7 +116,8 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
         final accentColorHex = data['parentColor'] as String?;
         if (accentColorHex != null) {
           setState(() {
-            _accentColor = Color(int.parse(accentColorHex.substring(1), radix: 16) + 0xFF000000);
+            _accentColor = Color(
+                int.parse(accentColorHex.substring(1), radix: 16) + 0xFF000000);
           });
         }
       }
@@ -69,6 +126,8 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
   // Listens to unread notifications for the parent
   void _listenToNotifications() {
+    if (!mounted) return;
+
     FirebaseFirestore.instance
         .collection('schools')
         .doc(widget.schoolCode)
@@ -76,6 +135,8 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
         .where('recipientIds', arrayContains: widget.userId)
         .snapshots()
         .listen((snapshot) {
+      if (!mounted) return;
+
       setState(() {
         notificationCount = snapshot.docs
             .where((doc) {
@@ -84,8 +145,78 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
         })
             .length;
       });
-    });
+    }, onError: (error) {
+      if (kDebugMode && mounted) {
+        if (kDebugMode) {
+          print('Error fetching notifications: $error');
+        }
+      }
+    }, cancelOnError: true);
   }
+
+  void _showCommunicationHubDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Communication Hub'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) =>
+                        UniversalMessagingScreen(
+                          userId: widget.userId,
+                          schoolId: widget.schoolCode,
+                          userType: userType,
+                          username: widget.username,
+                        ),
+                  ));
+                },
+                child: Text('Messages ($_unreadMessageCount unread)'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+  void _listenToUnreadMessages() {
+    if (!mounted) return;
+
+    FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolCode)
+        .collection('messages')
+        .where('recipientId', isEqualTo: widget.userId)
+        .where('read', isEqualTo: false)
+        .snapshots()
+        .listen((snapshot) {
+      if (!mounted) return;
+
+      setState(() {
+        _unreadMessageCount = snapshot.docs.length;
+      });
+    }, onError: (error) {
+      if (kDebugMode && mounted) {
+        if (kDebugMode) {
+          print('Error listening to messages: $error');
+        }
+      }
+    }, cancelOnError: true);
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -99,6 +230,7 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
           title: Text('Welcome, ${widget.username}'),
           backgroundColor: _accentColor,
           actions: [
+            // Existing notification icon
             Stack(
               children: [
                 IconButton(
@@ -131,14 +263,51 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
                   ),
               ],
             ),
+            // New Communication Hub icon
+            Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.message, color: Colors.black),
+                  onPressed: _showCommunicationHubDialog,
+                ),
+                if (_unreadMessageCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '$_unreadMessageCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
-        body: _getSelectedSection(),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _getSelectedSection(),
         bottomNavigationBar: BottomNavigationBar(
           items: const <BottomNavigationBarItem>[
-            BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Overview'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.dashboard), label: 'Overview'),
             BottomNavigationBarItem(icon: Icon(Icons.grade), label: 'Grades'),
-            BottomNavigationBarItem(icon: Icon(Icons.payment), label: 'Payments'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.payment), label: 'Payments'),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
           ],
           currentIndex: _selectedIndex,
@@ -163,14 +332,22 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
       case 0:
         return _buildOverviewSection();
       case 1:
-        return _buildGradesSection();
+        return _children.isEmpty
+            ? const Center(child: Text(
+            'No children associated with this account. Please add a child to view grades.'))
+            : _buildGradesSection();
       case 2:
-        return PaymentsScreen(userId: _selectedChildId ?? '', schoolCode: widget.schoolCode);
+        return _children.isEmpty
+            ? const Center(child: Text(
+            'No children associated with this account. Please add a child to view payments.'))
+            : PaymentsScreen(
+            userId: _selectedChildId ?? '', schoolCode: widget.schoolCode);
       case 3:
         return ProfileScreen(
           userId: widget.userId,
           username: widget.username,
-          email: '', // Ensure this gets passed correctly
+          email: '',
+          // Ensure this gets passed correctly
           userType: 'parent',
           accentColor: _accentColor,
         );
@@ -181,58 +358,121 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
   // Builds the Overview section with child selector and actions
   Widget _buildOverviewSection() {
+    if (_children.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('No children associated with this account'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _showAddChildDialog,
+              child: const Text('Add Child'),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       children: [
-        _buildChildSelector(),
-        ElevatedButton(
-          onPressed: _showAddChildDialog,
-          child: const Text('Add Child'),
+        // Child selector dropdown
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: DropdownButton<String>(
+            value: _selectedChildId,
+            hint: const Text('Select a child'),
+            isExpanded: true,
+            items: _children.map<DropdownMenuItem<String>>((child) {
+              return DropdownMenuItem<String>(
+                value: child['id'],
+                child: Text(child['name'] ?? 'Unknown'),
+              );
+            }).toList(),
+            onChanged: (String? newValue) {
+              setState(() {
+                _selectedChildId = newValue;
+              });
+            },
+          ),
         ),
+
+        // Action buttons row
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton(
+                onPressed: _showAddChildDialog,
+                child: const Text('Add Child'),
+              ),
+              if (_selectedChildId != null)
+                ElevatedButton(
+                  onPressed: _showSubmitAbsenteeForm,
+                  child: const Text('Submit Absentee Form'),
+                ),
+            ],
+          ),
+        ),
+
+        // Classes list
         if (_selectedChildId != null)
-          ElevatedButton(
-            onPressed: _showSubmitAbsenteeForm,
-            child: const Text('Submit Absentee Form'),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('schools')
+                  .doc(widget.schoolCode)
+                  .collection('classes')
+                  .where('studentIds', arrayContains: _selectedChildId)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error loading classes: ${snapshot.error}'),
+                  );
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                var classes = snapshot.data?.docs ?? [];
+                if (classes.isEmpty) {
+                  return const Center(
+                    child: Text('No classes found for this student'),
+                  );
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: classes.length,
+                  itemBuilder: (context, index) {
+                    var classData = classes[index].data() as Map<String,
+                        dynamic>;
+                    var classId = classes[index].id;
+
+                    return Card(
+                      margin: const EdgeInsets.all(8.0),
+                      child: ExpansionTile(
+                        title: Text(classData['name'] ?? 'Unnamed Class'),
+                        subtitle: Text(classData['subject'] ?? 'No subject'),
+                        children: [
+                          _buildClassGrades(classId),
+                          _buildClassAttendance(classId),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
       ],
     );
   }
 
-  // Builds the child selector dropdown
-  Widget _buildChildSelector() {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: DropdownButton<String>(
-        value: _selectedChildId,
-        hint: const Text('Select a child'),
-        isExpanded: true,
-        items: _childrenIds.map((String childId) {
-          return DropdownMenuItem<String>(
-            value: childId,
-            child: FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance.collection('users').doc(childId).get(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Text('Loading...');
-                }
-                if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
-                  return const Text('Error');
-                }
-                var childData = snapshot.data!.data() as Map<String, dynamic>?;
-                return Text(childData?['name'] ?? 'Unknown');
-              },
-            ),
-          );
-        }).toList(),
-        onChanged: (String? newValue) {
-          setState(() {
-            _selectedChildId = newValue;
-          });
-        },
-      ),
-    );
-  }
-
-  // Shows a dialog to add a child by email
   void _showAddChildDialog() {
     final TextEditingController emailController = TextEditingController();
 
@@ -272,76 +512,54 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
     );
   }
 
+
   Future<void> _sendChildRequest(String childEmail) async {
     try {
-      // Get the current user's data
-      Map<String, dynamic> userData = await _getUserData();
-
-      // Check if the current user is a parent
-      if (userData['role'] != 'parent') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You must be a parent to send a child request')),
-        );
-        return;
-      }
-
-      // Check if the child user already exists
-      QuerySnapshot childSnapshot = await FirebaseFirestore.instance
+      // First, find the child's user document
+      QuerySnapshot childUserDocs = await FirebaseFirestore.instance
           .collection('users')
           .where('email', isEqualTo: childEmail)
+          .where('role', isEqualTo: 'student')
+          .where('schoolCode', isEqualTo: widget.schoolCode)
           .limit(1)
           .get();
 
-      if (childSnapshot.docs.isEmpty) {
-        // Child user doesn't exist, show an error message
+      if (childUserDocs.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Child user with email $childEmail not found')),
+          const SnackBar(
+              content: Text('No student found with this email in your school')),
         );
         return;
       }
 
-      // Get the child user's ID
-      String childUserId = childSnapshot.docs.first.id;
+      String childId = childUserDocs.docs.first.id;
+      String requestId = '${widget.userId}_$childId';
 
-      // Create a new document in the 'childRequests' subcollection
-      DocumentReference parentUserDoc = FirebaseFirestore.instance.collection('users').doc(userData['uid']);
-      await parentUserDoc.collection('childRequests').add({
-        'parentId': userData['uid'],
-        'childId': childUserId,
+      // Create the child request
+      await FirebaseFirestore.instance.collection('childRequests').doc(
+          requestId).set({
+        'parentId': widget.userId,
+        'childId': childId,
+        'childEmail': childEmail,
         'status': 'pending',
         'timestamp': FieldValue.serverTimestamp(),
+        'schoolCode': widget.schoolCode,
       });
 
-      // Refresh the child selector dropdown
-      _fetchChildrenIds();
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Request sent to child')),
+        const SnackBar(content: Text('Request sent successfully')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sending child request: $e')),
+        SnackBar(content: Text('Error sending request: $e')),
       );
     }
   }
 
   bool _validateEmail(String email) {
-    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-    return emailRegex.hasMatch(email);
+    return RegExp(r"^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(email);
   }
 
-  Future<Map<String, dynamic>> _getUserData() async {
-    String? userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId != null) {
-      DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
-      return userSnapshot.data() as Map<String, dynamic>;
-    } else {
-      return {};
-    }
-  }
   // Shows a dialog to submit an absentee form
   void _showSubmitAbsenteeForm() {
     final TextEditingController reasonController = TextEditingController();
@@ -359,7 +577,8 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
               children: [
                 TextField(
                   controller: reasonController,
-                  decoration: const InputDecoration(hintText: "Reason for absence"),
+                  decoration: const InputDecoration(
+                      hintText: "Reason for absence"),
                 ),
                 const SizedBox(height: 10),
                 ElevatedButton(
@@ -376,12 +595,14 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
                       });
                       // Update the dialog with the selected date
                       Navigator.of(context).pop();
-                      _showSubmitAbsenteeFormWithDates(reasonController.text, picked, endDate);
+                      _showSubmitAbsenteeFormWithDates(
+                          reasonController.text, picked, endDate);
                     }
                   },
                   child: Text(startDate == null
                       ? 'Select Start Date'
-                      : 'Start Date: ${DateFormat('yyyy-MM-dd').format(startDate!)}'),
+                      : 'Start Date: ${DateFormat('yyyy-MM-dd').format(
+                      startDate!)}'),
                 ),
                 const SizedBox(height: 10),
                 ElevatedButton(
@@ -398,12 +619,14 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
                       });
                       // Update the dialog with the selected date
                       Navigator.of(context).pop();
-                      _showSubmitAbsenteeFormWithDates(reasonController.text, startDate, picked);
+                      _showSubmitAbsenteeFormWithDates(
+                          reasonController.text, startDate, picked);
                     }
                   },
                   child: Text(endDate == null
                       ? 'Select End Date'
-                      : 'End Date: ${DateFormat('yyyy-MM-dd').format(endDate!)}'),
+                      : 'End Date: ${DateFormat('yyyy-MM-dd').format(
+                      endDate!)}'),
                 ),
               ],
             ),
@@ -422,7 +645,8 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
   }
 
   // Shows the absentee form with selected dates
-  void _showSubmitAbsenteeFormWithDates(String reason, DateTime? start, DateTime? end) {
+  void _showSubmitAbsenteeFormWithDates(String reason, DateTime? start,
+      DateTime? end) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -432,8 +656,10 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('Reason: $reason'),
-              Text('Start Date: ${start != null ? DateFormat('yyyy-MM-dd').format(start) : 'Not selected'}'),
-              Text('End Date: ${end != null ? DateFormat('yyyy-MM-dd').format(end) : 'Not selected'}'),
+              Text('Start Date: ${start != null ? DateFormat('yyyy-MM-dd')
+                  .format(start) : 'Not selected'}'),
+              Text('End Date: ${end != null ? DateFormat('yyyy-MM-dd').format(
+                  end) : 'Not selected'}'),
             ],
           ),
           actions: <Widget>[
@@ -457,7 +683,8 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
   }
 
   // Submits the absentee form to Firestore
-  void _submitAbsenteeForm(String reason, DateTime? startDate, DateTime? endDate) async {
+  void _submitAbsenteeForm(String reason, DateTime? startDate,
+      DateTime? endDate) async {
     if (_selectedChildId == null || startDate == null || endDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
@@ -476,7 +703,8 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
       if (classesSnapshot.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No classes found for the selected child')),
+          const SnackBar(
+              content: Text('No classes found for the selected child')),
         );
         return;
       }
@@ -509,40 +737,210 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
     }
   }
 
-  // Builds the Grades section using StreamBuilder
   Widget _buildGradesSection() {
     if (_selectedChildId == null) {
       return const Center(child: Text('Please select a child to view grades'));
     }
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('schools')
           .doc(widget.schoolCode)
-          .collection('grades')
-          .where('studentId', isEqualTo: _selectedChildId)
-          .orderBy('date', descending: true)
+          .collection('classes')
+          .where('studentIds', arrayContains: _selectedChildId)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        var grades = snapshot.data!.docs;
-        if (grades.isEmpty) {
-          return const Center(child: Text('No grades available.'));
+
+        var classes = snapshot.data?.docs ?? [];
+        if (classes.isEmpty) {
+          return const Center(child: Text('No classes found for this student'));
         }
+
         return ListView.builder(
-          itemCount: grades.length,
+          itemCount: classes.length,
           itemBuilder: (context, index) {
-            var grade = grades[index].data() as Map<String, dynamic>;
-            return ListTile(
-              title: Text(grade['assignmentName'] ?? 'Unknown Assignment'),
-              subtitle: Text('Grade: ${grade['score']}/${grade['totalPossibleScore']}'),
-              trailing: Text('Date: ${DateFormat('yyyy-MM-dd').format((grade['date'] as Timestamp).toDate())}'),
+            var classData = classes[index].data() as Map<String, dynamic>;
+            return Card(
+              margin: const EdgeInsets.all(8.0),
+              child: ExpansionTile(
+                title: Text(classData['name'] ?? 'Unknown Class'),
+                subtitle: Text(classData['subject'] ?? 'No subject'),
+                children: [
+                  _buildClassGrades(classes[index].id),
+                  _buildClassAttendance(classes[index].id),
+                ],
+              ),
             );
           },
+        );
+      },
+    );
+  }
+
+  Widget _buildClassGrades(String classId) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolCode)
+          .collection('grades')
+          .where('classId', isEqualTo: classId)
+          .where('studentId', isEqualTo: _selectedChildId)
+          .orderBy('date', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return ListTile(
+            title: const Text('Grades'),
+            subtitle: Text('Error: ${snapshot.error}'),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const ListTile(
+            title: Text('Grades'),
+            subtitle: LinearProgressIndicator(),
+          );
+        }
+
+        var grades = snapshot.data?.docs ?? [];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: Text('Grades',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            if (grades.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Text('No grades available'),
+              )
+            else
+              ...grades.map((grade) {
+                var gradeData = grade.data() as Map<String, dynamic>;
+                return ListTile(
+                  title: Text(
+                      gradeData['assignmentName'] ?? 'Unknown Assignment'),
+                  subtitle: Text(
+                      'Type: ${gradeData['type'] ?? 'Not specified'}'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${gradeData['score']}/${gradeData['totalPossibleScore']}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(DateFormat('MMM d').format(
+                          (gradeData['date'] as Timestamp).toDate())),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildClassAttendance(String classId) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolCode)
+          .collection('attendance')
+          .where('classId', isEqualTo: classId)
+          .where('studentId', isEqualTo: _selectedChildId)
+          .orderBy('date', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return ListTile(
+            title: const Text('Attendance'),
+            subtitle: Text('Error: ${snapshot.error}'),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const ListTile(
+            title: Text('Attendance'),
+            subtitle: LinearProgressIndicator(),
+          );
+        }
+
+        var attendance = snapshot.data?.docs ?? [];
+
+        // Calculate attendance statistics
+        int totalDays = attendance.length;
+        int presentDays = attendance
+            .where((doc) =>
+        (doc.data() as Map<String, dynamic>)['status'] == 'present')
+            .length;
+        double attendanceRate = totalDays > 0
+            ? (presentDays / totalDays) * 100
+            : 0;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Divider(),
+            const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: Text('Attendance',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Present: $presentDays/$totalDays days'),
+                  Text('${attendanceRate.toStringAsFixed(1)}%'),
+                ],
+              ),
+            ),
+            if (attendance.isNotEmpty) ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text('Recent Attendance:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              ...attendance.take(5).map((record) {
+                var data = record.data() as Map<String, dynamic>;
+                return ListTile(
+                  dense: true,
+                  title: Text(DateFormat('MMM d').format(
+                      (data['date'] as Timestamp).toDate())),
+                  trailing: Text(
+                    data['status'] ?? 'Unknown',
+                    style: TextStyle(
+                      color: data['status'] == 'present' ? Colors.green : Colors
+                          .red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ],
         );
       },
     );
@@ -565,7 +963,8 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
             if (snapshot.hasError) {
               return AlertDialog(
                 title: const Text('Error'),
-                content: Text('Failed to fetch notifications: ${snapshot.error}'),
+                content: Text(
+                    'Failed to fetch notifications: ${snapshot.error}'),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
@@ -605,10 +1004,15 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
                   shrinkWrap: true,
                   itemCount: notifications.length,
                   itemBuilder: (context, index) {
-                    var notification = notifications[index].data() as Map<String, dynamic>;
+                    var notification = notifications[index].data() as Map<
+                        String,
+                        dynamic>;
                     bool isRead = false;
-                    if (notification['read'] != null && notification['read'] is Map) {
-                      var readMap = notification['read'] as Map<String, dynamic>;
+                    if (notification['read'] != null &&
+                        notification['read'] is Map) {
+                      var readMap = notification['read'] as Map<
+                          String,
+                          dynamic>;
                       isRead = readMap[widget.userId] ?? false;
                     }
 
@@ -617,11 +1021,13 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
                       subtitle: Text(notification['body'] ?? 'No content'),
                       trailing: Text(
                         notification['timestamp'] != null
-                            ? DateFormat('yyyy-MM-dd').format((notification['timestamp'] as Timestamp).toDate())
+                            ? DateFormat('yyyy-MM-dd').format(
+                            (notification['timestamp'] as Timestamp).toDate())
                             : 'No date',
                       ),
                       leading: Icon(
-                        isRead ? Icons.mark_email_read : Icons.mark_email_unread,
+                        isRead ? Icons.mark_email_read : Icons
+                            .mark_email_unread,
                         color: isRead ? Colors.grey : Colors.blue,
                       ),
                       onTap: () {
@@ -660,12 +1066,10 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
         }
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error marking notification as read: $e')),
-      );
+      if (kDebugMode) {
+        print('Error marking notification as read: $e');
+      }
     }
   }
 }
 
-extension on QuerySnapshot<Map<String, dynamic>> {
-}

@@ -235,6 +235,31 @@ class ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> handleSignOut() async {
+    try {
+      // Clear local state
+      setState(() {
+        _email = '';
+        _username = '';
+        _userType = '';
+      });
+
+      // Sign out from Firebase
+      await FirebaseAuth.instance.signOut();
+
+      // Navigate to login screen
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error signing out: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Theme(
@@ -278,27 +303,27 @@ class ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                             const SizedBox(width: 20),
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _username,
-                                  style: const TextStyle(
-                                    fontSize: 18.0,
-                                    fontWeight: FontWeight.w600,
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _username,
+                                    style: const TextStyle(
+                                      fontSize: 18.0,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                  textAlign: TextAlign.left,
-                                ),
-                                Text(
-                                  _email,
-                                  style: TextStyle(
-                                    fontSize: 13.0,
-                                    color: widget.accentColor,
+                                  Text(
+                                    _email,
+                                    style: TextStyle(
+                                      fontSize: 13.0,
+                                      color: widget.accentColor,
+                                    ),
                                   ),
-                                  textAlign: TextAlign.left,
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -421,23 +446,11 @@ class ProfileScreenState extends State<ProfileScreen> {
                         _buildOtherSectionBasedOnRole(),
                         const Separator(),
                         ProfileMenu(
-                          title: "Notification Settings",
-                          subtitle: "Edit your notifications",
-                          icon: CupertinoIcons.bell,
-                          onPress: () {},
-                        ),
-                        const Separator(),
-                        ProfileMenu(
                           title: "Sign Out",
                           subtitle: "Sign out of the app",
                           textColor: Colors.red,
                           icon: CupertinoIcons.square_arrow_right,
-                          onPress: () async {
-                            await FirebaseAuth.instance.signOut();
-                            if (context.mounted) {
-                              Navigator.pushReplacementNamed(context, '/login');
-                            }
-                          },
+                          onPress: handleSignOut,
                         ),
                         const SizedBox(height: 10),
                       ],
@@ -505,21 +518,21 @@ class ProfileMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      onTap: onPress,
-      leading: Container(
+        onTap: onPress,
+        leading: Container(
         width: 30,
         height: 30,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(100),
-          color: Colors.transparent,
-        ),
-        child: Icon(
-          icon,
-          color: Colors.blue,
-                size: 28.0,
-                semanticLabel: 'Text to announce in accessibility modes',
-              ),
-      ),
+        borderRadius: BorderRadius.circular(100),
+    color: Colors.transparent,
+    ),
+    child: Icon(
+    icon,
+    color: Colors.blue,
+    size: 28.0,
+    semanticLabel: 'Text to announce in accessibility modes',
+    ),
+    ),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -534,19 +547,19 @@ class ProfileMenu extends StatelessWidget {
         ],
       ),
       trailing: endIcon ? Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(100),
-                    color: Colors.transparent,
-                  ),
-                  child: const Icon(
-                    CupertinoIcons.chevron_forward,
-                    color: Colors.black,
-                    size: 18.0,
-                    semanticLabel: 'Forward button to account',
-                  ),
-                ) : null,
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(100),
+          color: Colors.transparent,
+        ),
+        child: const Icon(
+          CupertinoIcons.chevron_forward,
+          color: Colors.black,
+          size: 18.0,
+          semanticLabel: 'Forward button to account',
+        ),
+      ) : null,
     );
   }
 }

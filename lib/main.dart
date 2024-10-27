@@ -28,6 +28,7 @@ import 'dash_screens/payments_screen.dart';
 import 'admin_screen.dart';
 import 'firebase_options.dart';
 import 'theme_provider.dart';
+import 'structure.dart';
 
 bool showOnBoarding = true;
 
@@ -139,6 +140,7 @@ class MyApp extends StatelessWidget {
             '/party-dashboard': (context) => const PoliticalPartyDashboardScreen(username: '', userId: ''),
             '/payments': (context) => const PaymentsScreen(schoolCode: '', userId: '',),
             '/notifications': (context) => const NotificationsScreen(),
+            '/firestore-structure': (context) => FirestoreStructure(),
           },
           onUnknownRoute: (settings) => MaterialPageRoute(
             builder: (context) => const LoginScreen(),

@@ -1,9 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../screens/profile_screen.dart';
 import '../dash_screens/payments_screen.dart';
+import '../dash_screens/messaging_screen.dart';
 
 class StudentDashboardScreen extends StatefulWidget {
   final String username;
@@ -41,6 +43,10 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
   int _selectedIndex = 0;
   Color _accentColor = Colors.blue;
   int notificationCount = 0;
+  String? _userEmail;
+  late int _unreadMessageCount = 0;
+  final String userType = 'student';
+
 
   @override
   void initState() {
@@ -48,6 +54,8 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
     _listenToAccentColorChanges();
     _listenToNotifications();
     _verifyUserData();
+    _fetchUserEmail();
+    _listenToUnreadMessages();
   }
 
   void _listenToAccentColorChanges() {
@@ -61,8 +69,7 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
         final accentColorHex = data['studentColor'] as String?;
         if (accentColorHex != null) {
           setState(() {
-            _accentColor = Color(
-                int.parse(accentColorHex.substring(1), radix: 16) + 0xFF000000);
+            _accentColor = Color(int.parse(accentColorHex.substring(1), radix: 16) + 0xFF000000);
           });
         }
       }
@@ -72,6 +79,8 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
       }
     });
   }
+
+
 
   void _listenToNotifications() {
     FirebaseFirestore.instance
@@ -83,14 +92,74 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
         .listen((snapshot) {
       setState(() {
         notificationCount = snapshot.docs
-            .where((doc) => doc.data()['read'] == false)
+            .where((doc) {
+          var readMap = doc.data()['read'] as Map<String, dynamic>? ?? {};
+          return !(readMap[widget.userId] ?? false);
+        })
             .length;
       });
     }, onError: (error) {
       if (kDebugMode) {
-        print("Error listening to notifications: $error");
+        print('Error listening to notifications: $error');
+      }
+      // Handle error silently
+    });
+  }
+
+  void _markNotificationAsRead(String notificationId) {
+    FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolCode)
+        .collection('notifications')
+        .doc(notificationId)
+        .update({'read': true}).then((_) {
+      // Update the local notification count
+      setState(() {
+        notificationCount = notificationCount > 0 ? notificationCount - 1 : 0;
+      });
+    }).catchError((error) {
+      if (kDebugMode) {
+        print("Error marking notification as read: $error");
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error marking notification as read: $error')),
+      );
+    });
+  }
+
+
+  void _listenToUnreadMessages() {
+    FirebaseFirestore.instance
+        .collection('schools')
+        .doc(widget.schoolCode)
+        .collection('messages')
+        .where('recipientId', isEqualTo: widget.userId)
+        .where('read', isEqualTo: false)
+        .snapshots()
+        .listen((snapshot) {
+      setState(() {
+        _unreadMessageCount = snapshot.docs.length;
+      });
+    }, onError: (error) {
+      if (kDebugMode) {
+        print('Error listening to messages: $error');
       }
     });
+  }
+
+// Add this method to show the messaging screen
+  void _showMessagingScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UniversalMessagingScreen(
+          userId: widget.userId,
+          schoolId: widget.schoolCode,
+          userType: userType,
+          username: widget.username,
+        ),
+      ),
+    );
   }
 
   void _verifyUserData() async {
@@ -102,6 +171,122 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
       print('User data: ${userDoc.data()}');
     }
   }
+
+
+  void _fetchUserEmail() async {
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
+
+      if (userDoc.exists) {
+        var userData = userDoc.data() as Map<String, dynamic>;
+        setState(() {
+          _userEmail = userData['email'] as String?;
+        });
+        if (_userEmail != null) {
+          _listenToParentRequests();
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching user email: $e');
+      }
+    }
+  }
+
+
+  Future<void> acceptParentRequest(String requestId, String parentId) async {
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        // Get the request document reference
+        final requestRef = FirebaseFirestore.instance
+            .collection('childRequests')
+            .doc(requestId);
+
+        // Get the current user document reference
+        final userRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId);
+
+        // Get the current user data to check existing parentIds
+        DocumentSnapshot userDoc = await transaction.get(userRef);
+        List<String> currentParentIds = List<String>.from(userDoc.get('parentIds') ?? []);
+
+        // Only add the parent if not already in the list
+        if (!currentParentIds.contains(parentId)) {
+          currentParentIds.add(parentId);
+        }
+
+        // Update both documents in the transaction
+        transaction.update(requestRef, {
+          'status': 'accepted',
+          'acceptedAt': FieldValue.serverTimestamp(),
+        });
+
+        transaction.update(userRef, {
+          'parentIds': currentParentIds,
+        });
+      });
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Parent request accepted successfully')),
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error accepting parent request: $e');
+        if (e is FirebaseException) {
+          print('Firebase error code: ${e.code}');
+          print('Firebase error message: ${e.message}');
+        }
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error accepting request: ${e.toString()}')),
+      );
+    }
+  }
+
+// Add this cleanup method to call when needed
+  Future<void> cleanupUserConnections() async {
+    try {
+      // Sign out the user
+      await FirebaseAuth.instance.signOut();
+
+      // Clear Firestore cache
+      await FirebaseFirestore.instance.clearPersistence();
+
+      // Navigate to login screen or restart app
+      // Add your navigation logic here
+
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error cleaning up user connections: $e');
+      }
+    }
+  }
+
+  void _listenToParentRequests() {
+    if (_userEmail != null) {
+      FirebaseFirestore.instance
+          .collection('childRequests')
+          .where('childEmail', isEqualTo: _userEmail)
+          .where('status', isEqualTo: 'pending')
+          .snapshots()
+          .listen((snapshot) {
+        // Handle parent requests
+      }, onError: (error) {
+        if (kDebugMode) {
+          print('Error listening to parent requests: $error');
+        }
+      });
+    }
+  }
+
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -120,57 +305,60 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
                   fontSize: 20
               )
           ),
-          // backgroundColor: _accentColor,
           actions: [
-            Stack(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.notifications, color: Colors.black),
-                  onPressed: _showNotificationsDialog,
-                ),
-                if (notificationCount > 0)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        '$notificationCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            _buildNotificationIcon(),
+            _buildMessageIcon(),
           ],
         ),
         body: Stack(
-          children: [
-            _getSelectedSection(),
-            Align(alignment: Alignment.bottomCenter, child: _navBar())
-        ]
+            children: [
+              _getSelectedSection(),
+              Align(
+                  alignment: Alignment.bottomCenter,
+                  child: _navBar()
+              )
+            ]
         ),
       ),
     );
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+  Widget _buildNotificationIcon() {
+    return Stack(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.notifications, color: Colors.black),
+          onPressed: _showNotificationsDialog,
+        ),
+        if (notificationCount > 0)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              constraints: const BoxConstraints(
+                minWidth: 16,
+                minHeight: 16,
+              ),
+              child: Text(
+                '$notificationCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
+    );
   }
+
+
 
   Widget _navBar(){
     return Container(
@@ -243,19 +431,53 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
       case 1:
         return _buildAssignmentsSection();
       case 2:
-        return PaymentsScreen(
-            userId: widget.userId, schoolCode: widget.schoolCode);
+        return PaymentsScreen(userId: widget.userId, schoolCode: widget.schoolCode);
       case 3:
         return ProfileScreen(
           userId: widget.userId,
           username: widget.username,
-          email: '', // Ensure this gets passed correctly
+          email: _userEmail ?? '',
           userType: 'student',
           accentColor: _accentColor,
         );
       default:
         return _buildOverviewSection();
     }
+  }
+
+  Widget _buildMessageIcon() {
+    return Stack(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.message, color: Colors.black),
+          onPressed: _showMessagingScreen,
+        ),
+        if (_unreadMessageCount > 0)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              constraints: const BoxConstraints(
+                minWidth: 16,
+                minHeight: 16,
+              ),
+              child: Text(
+                '$_unreadMessageCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   Widget _buildOverviewSection() {
@@ -267,7 +489,8 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
           .get(),
       builder: (context, schoolSnapshot) {
         if (schoolSnapshot.hasError) {
-          return Center(child: Text('Error fetching school: ${schoolSnapshot.error}'));
+          return Center(
+              child: Text('Error fetching school: ${schoolSnapshot.error}'));
         }
 
         if (schoolSnapshot.connectionState == ConnectionState.waiting) {
@@ -276,7 +499,8 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
         var schoolDocs = schoolSnapshot.data?.docs ?? [];
         if (schoolDocs.isEmpty) {
-          return const Center(child: Text('No school found with the given school code.'));
+          return const Center(
+              child: Text('No school found with the given school code.'));
         }
 
         var schoolDoc = schoolDocs.first;
@@ -291,7 +515,8 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
               .snapshots(),
           builder: (context, classSnapshot) {
             if (classSnapshot.hasError) {
-              return Center(child: Text('Error fetching classes: ${classSnapshot.error}'));
+              return Center(child: Text(
+                  'Error fetching classes: ${classSnapshot.error}'));
             }
 
             if (classSnapshot.connectionState == ConnectionState.waiting) {
@@ -300,7 +525,8 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
             var classes = classSnapshot.data?.docs ?? [];
             if (classes.isEmpty) {
-              return const Center(child: Text('You are not enrolled in any classes yet.'));
+              return const Center(
+                  child: Text('You are not enrolled in any classes yet.'));
             }
 
             return ListView.builder(
@@ -357,10 +583,12 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
             ...grades.map((grade) {
               var gradeData = grade.data() as Map<String, dynamic>;
               return ListTile(
-                title: Text(gradeData['assignmentName'] ?? 'Unknown Assignment'),
+                title: Text(
+                    gradeData['assignmentName'] ?? 'Unknown Assignment'),
                 subtitle: Text('Type: ${gradeData['type'] ?? 'Unknown Type'}'),
                 trailing: Text(
-                  '${gradeData['score'] ?? 0}/${gradeData['totalPossibleScore'] ?? 0}',
+                  '${gradeData['score'] ??
+                      0}/${gradeData['totalPossibleScore'] ?? 0}',
                 ),
               );
             }),
@@ -398,7 +626,8 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
         return Column(
           children: [
-            const Text('Attendance', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+                'Attendance', style: TextStyle(fontWeight: FontWeight.bold)),
             ...attendanceRecords.map((attendance) {
               var attendanceData = attendance.data() as Map<String, dynamic>;
               var date = (attendanceData['date'] as Timestamp).toDate();
@@ -421,10 +650,11 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
           .doc(widget.schoolCode)
           .collection('assignments')
           .where('studentIds', arrayContains: widget.userId)
+          .orderBy('dueDate')
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('Error fetching assignments: ${snapshot.error}'));
+          return Center(child: Text('Error: ${snapshot.error}'));
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -433,140 +663,237 @@ class StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
         var assignments = snapshot.data?.docs ?? [];
         if (assignments.isEmpty) {
-          return const Center(child: Text('No assignments found.'));
+          return const Center(child: Text('No assignments found'));
         }
 
         return ListView.builder(
           itemCount: assignments.length,
           itemBuilder: (context, index) {
-            var assignmentData = assignments[index].data() as Map<String, dynamic>;
-            var assignmentName = assignmentData['name'] ?? 'Unnamed Assignment';
-            var dueDate = (assignmentData['dueDate'] as Timestamp).toDate();
-            var formattedDueDate = DateFormat.yMMMd().format(dueDate);
+            var assignment = assignments[index].data() as Map<String, dynamic>;
+            var dueDate = (assignment['dueDate'] as Timestamp).toDate();
+            var isOverdue = dueDate.isBefore(DateTime.now());
 
-            return ListTile(
-              title: Text(assignmentName),
-              subtitle: Text('Due: $formattedDueDate'),
+            return Card(
+              margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+              child: ListTile(
+                leading: Icon(
+                  isOverdue ? Icons.warning : Icons.assignment,
+                  color: isOverdue ? Colors.red : Colors.grey,
+                ),
+                title: Text(assignment['name'] ?? 'Unnamed Assignment'),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Due: ${DateFormat.yMMMd().add_jm().format(dueDate)}'),
+                    if (assignment['description'] != null)
+                      Text(
+                        assignment['description'],
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    if (assignment['type'] != null)
+                      Text(
+                        'Type: ${assignment['type']}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                  ],
+                ),
+                trailing: assignment['submitted'] == true
+                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    : isOverdue
+                    ? const Text('Overdue', style: TextStyle(color: Colors.red))
+                    : const Text('Pending'),
+              ),
             );
           },
         );
       },
     );
   }
-
+// Update notifications dialog to include parent requests
   void _showNotificationsDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('schools')
-              .doc(widget.schoolCode)
-              .collection('notifications')
-              .where('recipientIds', arrayContains: widget.userId)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return AlertDialog(
-                title: const Text('Error'),
-                content: Text('Failed to fetch notifications: ${snapshot.error}'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Close'),
-                  ),
-                ],
-              );
-            }
-
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            var notifications = snapshot.data?.docs ?? [];
-            if (notifications.isEmpty) {
-              return const Center(child: Text('No notifications found.'));
-            }
-
-            return AlertDialog(
-              title: const Text('Notifications'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: notifications.length,
-                  itemBuilder: (context, index) {
-                    var notificationData =
-                    notifications[index].data() as Map<String, dynamic>;
-                    return ListTile(
-                      title: Text(notificationData['title'] ?? 'No Title'),
-                      subtitle: Text(notificationData['message'] ?? 'No Message'),
-                    );
-                  },
+        return Dialog(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text('Notifications', style: Theme.of(context).textTheme.titleLarge),
                 ),
-              ),
-              actions: [
+                Flexible(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('schools')
+                        .doc(widget.schoolCode)
+                        .collection('notifications')
+                        .where('recipientIds', arrayContains: widget.userId)
+                        .orderBy('timestamp', descending: true)
+                        .snapshots(),
+                    builder: (context, notificationSnapshot) {
+                      if (notificationSnapshot.hasError) {
+                        return const Text('Something went wrong');
+                      }
+
+                      if (notificationSnapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      // Add parent requests stream
+                      return StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('childRequests')
+                            .where('childEmail', isEqualTo: _userEmail)
+                            .where('status', isEqualTo: 'pending')
+                            .snapshots(),
+                        builder: (context, requestSnapshot) {
+                          List<Widget> notificationItems = [];
+
+                          // Add parent requests
+                          if (requestSnapshot.hasData && requestSnapshot.data!.docs.isNotEmpty) {
+                            notificationItems.addAll(
+                              requestSnapshot.data!.docs.map((doc) {
+                                var data = doc.data() as Map<String, dynamic>;
+                                return Card(
+                                  margin: const EdgeInsets.all(8.0),
+                                  child: ListTile(
+                                    leading: const Icon(Icons.family_restroom),
+                                    title: const Text('Parent Connection Request'),
+                                    subtitle: Text('From: ${data['parentId']}'),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        TextButton(
+                                          child: const Text('Accept'),
+                                          onPressed: () => acceptParentRequest(doc.id, data['parentId']),
+                                        ),
+                                        TextButton(
+                                          child: const Text('Decline'),
+                                          onPressed: () {
+                                            // Implement decline functionality
+                                            FirebaseFirestore.instance
+                                                .collection('childRequests')
+                                                .doc(doc.id)
+                                                .update({'status': 'rejected'});
+                                            Navigator.of(context).pop();
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+                            );
+                          }
+
+                          // Add regular notifications
+                          notificationItems.addAll(
+                            notificationSnapshot.data!.docs.map((doc) {
+                              var data = doc.data() as Map<String, dynamic>;
+                              return Card(
+                                margin: const EdgeInsets.all(8.0),
+                                child: ListTile(
+                                  title: Text(data['title'] ?? 'No title'),
+                                  subtitle: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(data['body'] ?? 'No content'),
+                                      Text(
+                                        DateFormat('MMM d, y HH:mm')
+                                            .format((data['timestamp'] as Timestamp).toDate()),
+                                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                      ),
+                                    ],
+                                  ),
+                                  trailing: data['read'] == false
+                                      ? TextButton(
+                                    onPressed: () => _markNotificationAsRead(doc.id),
+                                    child: const Text('Mark as Read'),
+                                  )
+                                      : null,
+                                ),
+                              );
+                            }),
+                          );
+
+                          return ListView(
+                            shrinkWrap: true,
+                            children: notificationItems,
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Close'),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
-            );
-          },
+            ),
+          ),
         );
       },
     );
   }
-}
-
 // Example in Flutter using Firestore
-Future<void> getStudentGradeAndAttendance(String schoolId, String classId, String studentId) async {
-  try {
-    // Get grade
-    var gradeSnapshot = await FirebaseFirestore.instance
-        .collection('schools')
-        .doc(schoolId)
-        .collection('grades')
-        .where('classId', isEqualTo: classId)
-        .where('studentId', isEqualTo: studentId)
-        .get();
+  Future<void> getStudentGradeAndAttendance(String schoolId, String classId,
+      String studentId) async {
+    try {
+      // Get grade
+      var gradeSnapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('grades')
+          .where('classId', isEqualTo: classId)
+          .where('studentId', isEqualTo: studentId)
+          .get();
 
-    // Check if grade exists, otherwise show 0%
-    if (gradeSnapshot.docs.isEmpty) {
-      if (kDebugMode) {
-        print('Grade: 0%');
-      } // Display default value
-    } else {
-      // Display the actual grade
-      if (kDebugMode) {
-        print('Grade: ${gradeSnapshot.docs[0]['score']}');
+      // Check if grade exists, otherwise show 0%
+      if (gradeSnapshot.docs.isEmpty) {
+        if (kDebugMode) {
+          print('Grade: 0%');
+        } // Display default value
+      } else {
+        // Display the actual grade
+        if (kDebugMode) {
+          print('Grade: ${gradeSnapshot.docs[0]['score']}');
+        }
       }
-    }
 
-    // Get attendance
-    var attendanceSnapshot = await FirebaseFirestore.instance
-        .collection('schools')
-        .doc(schoolId)
-        .collection('attendance')
-        .where('classId', isEqualTo: classId)
-        .where('studentId', isEqualTo: studentId)
-        .get();
+      // Get attendance
+      var attendanceSnapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(schoolId)
+          .collection('attendance')
+          .where('classId', isEqualTo: classId)
+          .where('studentId', isEqualTo: studentId)
+          .get();
 
-    // Check if attendance exists, otherwise show default
-    if (attendanceSnapshot.docs.isEmpty) {
-      if (kDebugMode) {
-        print('Attendance: 0%');
-      } // Display default value
-    } else {
-      // Display the actual attendance record
-      if (kDebugMode) {
-        print('Attendance: ${attendanceSnapshot.docs.length} days present');
+      // Check if attendance exists, otherwise show default
+      if (attendanceSnapshot.docs.isEmpty) {
+        if (kDebugMode) {
+          print('Attendance: 0%');
+        } // Display default value
+      } else {
+        // Display the actual attendance record
+        if (kDebugMode) {
+          print('Attendance: ${attendanceSnapshot.docs.length} days present');
+        }
       }
-    }
-
-  } catch (e) {
-    if (kDebugMode) {
-      print('Error: ${e.toString()}');
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error: ${e.toString()}');
+      }
     }
   }
 }

@@ -1,5 +1,4 @@
 import 'package:demo/dash_screens/school_management_screen.dart';
-import 'package:demo/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:demo/school/admin_dashboard_screen.dart';
@@ -7,6 +6,8 @@ import 'package:demo/school/parent_dashboard_screen.dart';
 import 'package:demo/screens/company_dashboard_screen.dart';
 import 'package:demo/screens/party_dashboard_screen.dart';
 import 'package:demo/screens/school_dashboard_screen.dart';
+import 'package:demo/screens/profile_screen.dart';
+import 'package:demo/structure.dart'; // Import the FirestoreStructure widget
 
 class AdminPanelScreen extends StatefulWidget {
   final String username;
@@ -50,16 +51,19 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
   }
 
   List<Widget> get _widgetOptions => <Widget>[
-    const DashboardScreen(userId: '',),
+    const DashboardScreen(userId: ''),
     const NotificationsScreen(),
     const AnalyticsScreen(),
     const AdminCreationScreen(),
     ProfileScreen(
-        userId: widget.userId,
-        username: username,
-        email: email,
-        userType: "", accentColor: Colors.blueAccent,),
-    const AdminManagementScreen(), // Integrating the AdminManagementScreen here
+      userId: widget.userId,
+      username: username,
+      email: email,
+      userType: "",
+      accentColor: Colors.blueAccent,
+    ),
+    const AdminManagementScreen(),
+    FirestoreStructure(), // Create an instance of FirestoreStructure
   ];
 
   void _onItemTapped(int index) {
@@ -99,7 +103,10 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
             icon: Icon(Icons.account_circle),
             label: 'Profile',
           ),
-
+          BottomNavigationBarItem(
+            icon: Icon(Icons.storage),
+            label: 'DB Structure',
+          ),
         ],
         currentIndex: _selectedIndex,
         backgroundColor: Colors.blue,
