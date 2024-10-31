@@ -143,25 +143,91 @@ class UniversalMessagingScreenState extends State<UniversalMessagingScreen> {
 
   Widget _buildMessageComposer() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      height: 70.0,
-      color: Colors.white,
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration.collapsed(
-                hintText: 'Send a message...',
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.send),
-            onPressed: _handleSubmitted,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            offset: const Offset(0, -1),
+            blurRadius: 4,
           ),
         ],
+      ),
+      child: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16.0,
+            vertical: 8.0,
+          ),
+          constraints: const BoxConstraints(
+            minHeight: 64.0,
+            maxHeight: 120.0,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(24.0),
+                    border: Border.all(
+                      color: Colors.grey[200]!,
+                      width: 1.0,
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _messageController,
+                    maxLines: null,
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.newline,
+                    style: const TextStyle(
+                      fontSize: 16.0,
+                      color: Colors.black87,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Send a message...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 16.0,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20.0,
+                        vertical: 12.0,
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              Container(
+                margin: const EdgeInsets.only(bottom: 4.0),
+                child: Material(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(24.0),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24.0),
+                    onTap: _handleSubmitted,
+                    child: Container(
+                      height: 44.0,
+                      width: 44.0,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24.0),
+                      ),
+                      child: const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 20.0,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -178,7 +244,7 @@ class UniversalMessagingScreenState extends State<UniversalMessagingScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: _selectedRecipientName == null ?  _buildContactsScreen(): Column(
         children: [
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
@@ -235,6 +301,127 @@ class UniversalMessagingScreenState extends State<UniversalMessagingScreen> {
       ),
     );
   }
+
+  Widget _buildContactsScreen() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .where('schoolCode', isEqualTo: widget.schoolId)
+          .where('role', whereIn: _getAllowedRoles())
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Error loading contacts',
+              style: TextStyle(
+                color: Colors.red[700],
+                fontSize: 16.0,
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        var users = snapshot.data?.docs ?? [];
+        users = users.where((doc) => doc.id != widget.userId).toList();
+
+        if (users.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'No contacts available',
+                style: TextStyle(
+                  fontSize: 16.0,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Create a fixed list of background colors for avatars
+        final List<Color> avatarColors = [
+          Colors.blue[400]!,
+          Colors.purple[400]!,
+          Colors.orange[400]!,
+          Colors.green[400]!,
+          Colors.pink[400]!,
+          Colors.teal[400]!,
+          Colors.indigo[400]!,
+          Colors.red[400]!,
+        ];
+
+        return ListView.separated(
+          shrinkWrap: true,
+          physics: const AlwaysScrollableScrollPhysics(),
+          itemCount: users.length,
+          separatorBuilder: (context, index) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            var userData = users[index].data() as Map<String, dynamic>;
+            String name = userData['name'] ?? 'Unknown';
+            String role = userData['role'] ?? '';
+            String initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+            // Use the name's first character ASCII value to deterministically assign a color
+            final colorIndex = name.isNotEmpty
+                ? name.codeUnitAt(0) % avatarColors.length
+                : 0;
+
+            return ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
+              leading: CircleAvatar(
+                radius: 24,
+                backgroundColor: avatarColors[colorIndex],
+                child: Text(
+                  initial,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              title: Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              subtitle: Text(
+                role.toLowerCase(),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  height: 1.5,
+                ),
+              ),
+              onTap: () {
+                setState(() {
+                  _selectedRecipientId = users[index].id;
+                  _selectedRecipientName = userData['name'];
+                });
+              },
+              trailing: const Icon(
+                Icons.chevron_right,
+                color: Colors.grey,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
 class MessageBubble extends StatelessWidget {
@@ -254,38 +441,70 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      padding: EdgeInsets.only(
+        left: isCurrentUser ? 64.0 : 16.0,
+        right: isCurrentUser ? 16.0 : 64.0,
+        top: 4.0,
+        bottom: 4.0,
+      ),
       child: Column(
         crossAxisAlignment:
         isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            senderName,
-            style: const TextStyle(
-              fontSize: 12.0,
-              color: Colors.black54,
+          if (!isCurrentUser) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 4.0, bottom: 4.0),
+              child: Text(
+                senderName,
+                style: const TextStyle(
+                  fontSize: 13.0,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
-          ),
-          Material(
-            borderRadius: BorderRadius.circular(8.0),
-            elevation: 1,
-            color: isCurrentUser ? Colors.lightBlueAccent : Colors.white,
+          ],
+          Container(
+            decoration: BoxDecoration(
+              color: isCurrentUser ? Colors.blue[400] : Colors.grey[100],
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(16.0),
+                topRight: const Radius.circular(16.0),
+                bottomLeft: Radius.circular(isCurrentUser ? 16.0 : 4.0),
+                bottomRight: Radius.circular(isCurrentUser ? 4.0 : 16.0),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15.0),
+              padding: const EdgeInsets.symmetric(
+                vertical: 10.0,
+                horizontal: 16.0,
+              ),
               child: Text(
                 message,
                 style: TextStyle(
                   color: isCurrentUser ? Colors.white : Colors.black87,
-                  fontSize: 15.0,
+                  fontSize: 16.0,
+                  height: 1.3,
                 ),
               ),
             ),
           ),
-          Text(
-            DateFormat('MMM d, h:mm a').format(timestamp.toDate()),
-            style: const TextStyle(
-              fontSize: 10.0,
-              color: Colors.black54,
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0, left: 4.0, right: 4.0),
+            child: Text(
+              DateFormat('MMM d, h:mm a').format(timestamp.toDate()),
+              style: TextStyle(
+                fontSize: 11.0,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w400,
+              ),
             ),
           ),
         ],
@@ -293,3 +512,5 @@ class MessageBubble extends StatelessWidget {
     );
   }
 }
+
+

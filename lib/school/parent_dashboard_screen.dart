@@ -24,6 +24,18 @@ class ParentDashboardScreen extends StatefulWidget {
   ParentDashboardScreenState createState() => ParentDashboardScreenState();
 }
 
+List<IconData> navIcons = [
+  Icons.dashboard,
+  Icons.grade,
+  Icons.payment,
+  Icons.person,
+];
+List<String> navTitle = [
+  "Overview",
+  "Grades",
+  "Payments",
+  "Profile"
+];
 
 class ParentDashboardScreenState extends State<ParentDashboardScreen> {
   int _selectedIndex = 0;
@@ -158,34 +170,77 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Communication Hub'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (context) =>
-                        UniversalMessagingScreen(
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16.0),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Communication Hub',
+                  style: TextStyle(
+                    fontSize: 20.0,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24.0),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => UniversalMessagingScreen(
                           userId: widget.userId,
                           schoolId: widget.schoolCode,
                           userType: userType,
                           username: widget.username,
                         ),
-                  ));
-                },
-                child: Text('Messages ($_unreadMessageCount unread)'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12.0),
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.message, size: 20.0),
+                      const SizedBox(width: 8.0),
+                      Text(
+                        'Messages ${_unreadMessageCount > 0 ? "($_unreadMessageCount unread)" : "(0 unread)"}',
+                        style: const TextStyle(fontSize: 16.0),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16.0),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey[700],
+                  ),
+                  child: const Text(
+                    'Close',
+                    style: TextStyle(fontSize: 16.0),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -300,22 +355,80 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : _getSelectedSection(),
-        bottomNavigationBar: BottomNavigationBar(
-          items: const <BottomNavigationBarItem>[
-            BottomNavigationBarItem(
-                icon: Icon(Icons.dashboard), label: 'Overview'),
-            BottomNavigationBarItem(icon: Icon(Icons.grade), label: 'Grades'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.payment), label: 'Payments'),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          ],
-          currentIndex: _selectedIndex,
-          selectedItemColor: _accentColor,
-          unselectedItemColor: Colors.grey,
-          onTap: _onItemTapped,
+            : Stack(
+            children: [
+              _getSelectedSection(),
+              Align(
+                  alignment: Alignment.bottomCenter,
+                  child: _navBar()
+              )
+            ]
         ),
       ),
+    );
+  }
+
+  Widget _navBar(){
+    return Container(
+        height: 65,
+        margin: const EdgeInsets.only(
+            right: 24,
+            left: 24,
+            bottom: 24
+        ),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withAlpha(20),
+                  blurRadius: 20,
+                  spreadRadius: 10
+              )
+            ]
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: navIcons.map((icon) {
+            int index = navIcons.indexOf(icon);
+            bool isSelected = _selectedIndex == index;
+            return Material(
+              color: Colors.transparent,
+              child: GestureDetector(
+                onTap: (){
+                  setState(() {
+                    _selectedIndex = index;
+                  });
+                },
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Container(
+                        alignment: Alignment.center,
+                        margin: const EdgeInsets.only(
+                            top: 15,
+                            bottom:0,
+                            left: 30,
+                            right: 30
+                        ),
+                        child: Icon(icon, color: isSelected ? Colors.blue : Colors.grey),
+                      ),
+                      Text(
+                          navTitle[index],
+                          style: TextStyle(
+                              color: isSelected ? Colors.blue : Colors.grey,
+                              fontSize: 10
+                          )
+                      ),
+                      const SizedBox(height: 15)
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        )
     );
   }
 
@@ -333,13 +446,33 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
         return _buildOverviewSection();
       case 1:
         return _children.isEmpty
-            ? const Center(child: Text(
-            'No children associated with this account. Please add a child to view grades.'))
+            ? Center(child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            padding: const EdgeInsets.all(24),
+            child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [ Text(
+            'No children associated with this account. Please add a child to view grades.',   textAlign: TextAlign.center,),
+            ]
+            )
+        )
+        )
             : _buildGradesSection();
       case 2:
         return _children.isEmpty
-            ? const Center(child: Text(
-            'No children associated with this account. Please add a child to view payments.'))
+            ? Center(child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            padding: const EdgeInsets.all(24),
+            child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [ Text(
+                  'No children associated with this account. Please add a child to view grades.',   textAlign: TextAlign.center,),
+                ]
+            )
+        )
+        )
             : PaymentsScreen(
             userId: _selectedChildId ?? '', schoolCode: widget.schoolCode);
       case 3:
@@ -358,18 +491,64 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
   // Builds the Overview section with child selector and actions
   Widget _buildOverviewSection() {
+    final theme = Theme.of(context);
     if (_children.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('No children associated with this account'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _showAddChildDialog,
-              child: const Text('Add Child'),
-            ),
-          ],
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Illustration or Icon
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.child_care_rounded,
+                  size: 48,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Message
+              Text(
+                'No children associated with this account',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.8),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+
+              // Subtitle
+              Text(
+                'Add a child to get started with managing their profile',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+
+              // Button
+              FilledButton(
+                onPressed:  _showAddChildDialog,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 56),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text('Add Child'),
+              ),
+            ],
+          ),
         ),
       );
     }
