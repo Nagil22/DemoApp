@@ -282,14 +282,22 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
       ),
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Welcome, ${widget.username}'),
+          title: Text(
+              'Welcome, ${widget.username}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 20,
+                color: Colors.white
+              )
+          ),
           backgroundColor: _accentColor,
           actions: [
             // Existing notification icon
             Stack(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.notifications, color: Colors.black),
+                  icon: const Icon(Icons.notifications, color: Colors.white),
                   onPressed: _showNotificationsDialog,
                 ),
                 if (notificationCount > 0)
@@ -322,7 +330,7 @@ class ParentDashboardScreenState extends State<ParentDashboardScreen> {
             Stack(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.message, color: Colors.black),
+                  icon: const Icon(Icons.message, color: Colors.white),
                   onPressed: _showCommunicationHubDialog,
                 ),
                 if (_unreadMessageCount > 0)
