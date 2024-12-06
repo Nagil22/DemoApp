@@ -9,89 +9,80 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:demo/school/teacher_dashboard_screen.dart';
 import 'package:demo/school/parent_dashboard_screen.dart';
 import 'package:demo/school/student_dashboard_screen.dart';
-import 'package:demo/screens/company_dashboard_screen.dart';
-import 'package:demo/screens/party_dashboard_screen.dart';
+
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Future<Widget> handleAuthState(BuildContext context, String? username, String? userId) async {
+  Future<Widget> handleAuthState(BuildContext context) async {
     User? user = _auth.currentUser;
-    if (user != null) {
-      try {
-        DocumentSnapshot userData = await _firestore.collection('users').doc(user.uid).get();
+    if (user == null) return const LoginScreen();
 
-        if (userData.exists) {
-          Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
-          String role = data['role'] ?? '';
-          String? schoolCode = data['schoolCode'];
+    try {
+      DocumentSnapshot userData = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
-          print('User role: $role'); // Debugging line
+      if (!userData.exists) return const LoginScreen();
 
-          switch (role.toLowerCase()) {
-            case 'superadmin':
-              return AdminPanelScreen(
-                userId: user.uid,
-                username: data['name'] ?? '',
-                email: user.email ?? '',
-              );
-            case 'schooladmin':
-              return AdminDashboardScreen(
-                username: data['name'] ?? '',
-                userId: user.uid,
-                schoolCode: schoolCode ?? '',
-                schoolName: '',
-              );
-            case 'teacher':
-              return TeacherDashboardScreen(
-                userId: user.uid,
-                schoolCode: schoolCode ?? '',
-                username: data['name'] ?? '',
-                schoolName: '',
-              );
-            case 'parent':
-              return ParentDashboardScreen(
-                userId: user.uid,
-                schoolCode: schoolCode ?? '',
-                username: data['name'] ?? '',
-                schoolName: '',
-              );
-            case 'student':
-              return StudentDashboardScreen(
-                userId: user.uid,
-                schoolCode: schoolCode ?? '',
-                username: data['name'] ?? '',
-                schoolName: '',
-              );
-            case 'companyadmin':
-              return CompanyDashboardScreen(
-                username: username ?? '',
-                userId: userId ?? '',
-              );
-            case 'partyadmin':
-              return PoliticalPartyDashboardScreen(
-                username: username ?? '',
-                userId: userId ?? '',
-              );
-            default:
-              print('Unknown role: $role'); // Debugging line
-              return const LoginScreen();
-          }
-        } else {
-          print('User document does not exist'); // Debugging line
+      Map<String, dynamic> data = userData.data() as Map<String, dynamic>;
+      String role = data['role'] ?? '';
+      String? schoolCode = data['schoolCode'];
+
+      switch (role.toLowerCase()) {
+        case 'superadmin':
+          return AdminPanelScreen(
+            userId: user.uid,
+            username: data['name'] ?? '',
+            email: user.email ?? '',
+          );
+        case 'schooladmin':
+          if (schoolCode == null || schoolCode.isEmpty) return const LoginScreen();
+          return AdminDashboardScreen(
+            username: data['name'] ?? '',
+            userId: user.uid,
+            schoolCode: schoolCode,
+            schoolName: data['schoolName'] ?? '',
+            schoolType: data['schoolType'] ?? '',
+          );
+        case 'teacher':
+          if (schoolCode == null || schoolCode.isEmpty) return const LoginScreen();
+          return TeacherDashboardScreen(
+            userId: user.uid,
+            schoolCode: schoolCode,
+            username: data['name'] ?? '',
+            schoolName: data['schoolName'] ?? '',
+            schoolType: data['schoolType'] ?? '',
+          );
+        case 'parent':
+          if (schoolCode == null || schoolCode.isEmpty) return const LoginScreen();
+          return ParentDashboardScreen(
+            userId: user.uid,
+            schoolCode: schoolCode,
+            username: data['name'] ?? '',
+            schoolName: data['schoolName'] ?? '',
+          );
+        case 'student':
+          if (schoolCode == null || schoolCode.isEmpty) return const LoginScreen();
+          return StudentDashboardScreen(
+            userId: user.uid,
+            schoolCode: schoolCode,
+            username: data['name'] ?? '',
+            schoolName: data['schoolName'] ?? '',
+            schoolType: data['schoolType'] ?? '',
+          );
+        default:
           return const LoginScreen();
-        }
-      } catch (e) {
-        print('Error in handleAuthState: $e'); // Debugging line
-        return const LoginScreen();
       }
+    } catch (e) {
+      debugPrint('Error in handleAuthState: $e');
+      return const LoginScreen();
     }
-    print('User is null'); // Debugging line
-    return const LoginScreen();
   }
 
-  Future<void> createUser({
+  Future<bool> createUser({
     required String email,
     required String password,
     required String name,
@@ -103,24 +94,25 @@ class AuthService {
         email: email,
         password: password,
       );
+
       User? user = result.user;
-      if (user != null) {
-        await _firestore.collection('users').doc(user.uid).set({
-          'name': name,
-          'email': email,
-          'role': role,
-          'schoolCode': schoolCode,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
+      if (user == null) return false;
+
+      await _firestore.collection('users').doc(user.uid).set({
+        'name': name,
+        'email': email,
+        'role': role,
+        'schoolCode': schoolCode,
+        'createdAt': FieldValue.serverTimestamp(),
+        'status': 'active',
+      });
+
+      return true;
     } catch (e) {
-      print(e.toString());
-      // Handle error (show error message to user)
+      debugPrint('Error creating user: $e');
+      return false;
     }
   }
-}
-
-extension on Object? {
 }
 
 class LoginScreen extends StatefulWidget {
@@ -143,55 +135,125 @@ class LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  void _login() async {
+  Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _loading = true;
-      });
+      setState(() => _loading = true);
 
       try {
-        UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        UserCredential userCredential = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
+        if (!mounted) return;
+
         User? user = userCredential.user;
-        if (user != null) {
-          AuthService authService = AuthService();
-          Widget destinationScreen = await authService.handleAuthState(
-              context,
-              user.displayName,
-              user.uid
-          );
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => destinationScreen),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to sign in: User is null')),
-          );
+        if (user == null) throw Exception('Authentication failed');
+
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (!userDoc.exists) {
+          await FirebaseAuth.instance.signOut();
+          throw Exception('User data not found');
         }
+
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+        String role = userData['role'] ?? '';
+        String schoolCode = userData['schoolCode'] ?? '';
+        String schoolType = userData['schoolType'] ?? '';
+
+        if (!mounted) return;
+
+        Widget destinationScreen;
+        switch (role) {
+          case 'superadmin':
+            destinationScreen = AdminPanelScreen(
+              userId: user.uid,
+              username: userData['name'] ?? '',
+              email: user.email ?? '',
+            );
+            break;
+          case 'schooladmin':
+            destinationScreen = AdminDashboardScreen(
+              username: userData['name'] ?? '',
+              userId: user.uid,
+              schoolCode: schoolCode,
+              schoolName: userData['schoolName'] ?? '',
+              schoolType: schoolType,
+            );
+            break;
+          case 'teacher':
+            destinationScreen = TeacherDashboardScreen(
+              username: userData['name'] ?? '',
+              userId: user.uid,
+              schoolCode: schoolCode,
+              schoolName: userData['schoolName'] ?? '',
+              schoolType: schoolType,
+            );
+            break;
+          case 'student':
+            destinationScreen = StudentDashboardScreen(
+              username: userData['name'] ?? '',
+              userId: user.uid,
+              schoolCode: schoolCode,
+              schoolName: userData['schoolName'] ?? '',
+              schoolType: schoolType,
+            );
+            break;
+          case 'parent':
+            destinationScreen = ParentDashboardScreen(
+              username: userData['name'] ?? '',
+              userId: user.uid,
+              schoolCode: schoolCode,
+              schoolName: userData['schoolName'] ?? '',
+            );
+            break;
+          default:
+            await FirebaseAuth.instance.signOut();
+            throw Exception('Invalid user role');
+        }
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => destinationScreen),
+        );
       } on FirebaseAuthException catch (e) {
-        String errorMessage = 'An error occurred during sign in';
-        if (e.code == 'user-not-found') {
-          errorMessage = 'No user found for that email.';
-        } else if (e.code == 'wrong-password') {
-          errorMessage = 'Wrong password provided for that user.';
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
+        _handleAuthError(e);
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to sign in: $e')),
-        );
+        _showError('Failed to sign in: $e');
       } finally {
-        setState(() {
-          _loading = false;
-        });
+        if (mounted) setState(() => _loading = false);
       }
     }
+  }
+
+  void _handleAuthError(FirebaseAuthException e) {
+    String message = 'An error occurred during sign in';
+    switch (e.code) {
+      case 'user-not-found':
+        message = 'No user found for that email.';
+        break;
+      case 'wrong-password':
+        message = 'Wrong password provided.';
+        break;
+      case 'user-disabled':
+        message = 'This account has been disabled.';
+        break;
+      default:
+        message = e.message ?? message;
+    }
+    _showError(message);
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
@@ -284,7 +346,7 @@ class LoginScreenState extends State<LoginScreen> {
                   )
               ),
               ElevatedButton(
-                onPressed: _login,
+                onPressed: _loading ? null : _login,
                 style: ElevatedButton.styleFrom(
                   elevation: 4,
                   minimumSize: const Size(350, 50),

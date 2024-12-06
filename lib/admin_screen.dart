@@ -1,13 +1,219 @@
-import 'package:demo/dash_screens/school_management_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:demo/school/admin_dashboard_screen.dart';
-import 'package:demo/school/parent_dashboard_screen.dart';
-import 'package:demo/screens/company_dashboard_screen.dart';
-import 'package:demo/screens/party_dashboard_screen.dart';
-import 'package:demo/screens/school_dashboard_screen.dart';
+import 'package:flutter/foundation.dart';
 import 'package:demo/screens/profile_screen.dart';
-import 'package:demo/structure.dart'; // Import the FirestoreStructure widget
+import 'package:demo/structure.dart';
+import 'dash_screens/school_management_screen.dart';
+
+// ActivityLogger mixin to handle activity logging
+mixin ActivityLogger {
+  Future<void> logActivity(String userId, String username, String action, String details) async {
+    try {
+      await FirebaseFirestore.instance.collection('activity_log').add({
+        'action': action,
+        'details': details,
+        'user': username,
+        'userId': userId,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error logging activity: $e');
+      }
+    }
+  }
+}
+
+class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Notifications', style: Theme.of(context).textTheme.headlineMedium),
+      ),
+      body: const Center(
+        child: Text('Super Admin Notifications'),
+      ),
+    );
+  }
+}
+
+class DashboardScreen extends StatelessWidget with ActivityLogger {
+  final String userId;
+  final String username;
+  final Map<String, int> stats;
+  final bool isLoading;
+
+  const DashboardScreen({
+    super.key,
+    required this.userId,
+    required this.username,
+    required this.stats,
+    required this.isLoading,
+  });
+
+
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildStatsGrid(),
+          const SizedBox(height: 24),
+          _buildRecentActivity(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsGrid() {
+    return GridView.count(
+      shrinkWrap: true,
+      crossAxisCount: 2,
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _buildStatCard(
+          'Total Schools',
+          stats['totalSchools'].toString(),
+          Icons.school,
+          Colors.blue,
+        ),
+        _buildStatCard(
+          'Active Schools',
+          stats['activeSchools'].toString(),
+          Icons.check_circle,
+          Colors.green,
+        ),
+        _buildStatCard(
+          'Total Users',
+          stats['totalUsers'].toString(),
+          Icons.people,
+          Colors.orange,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 32, color: color),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentActivity(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Recent Activity',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () {
+                    logActivity(userId, username, 'Refresh Activity Log', 'Manual refresh of activity log');
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('activity_log')
+                  .orderBy('timestamp', descending: true)
+                  .limit(5)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('No recent activity'));
+                }
+
+                var activities = snapshot.data!.docs;
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: activities.length,
+                  itemBuilder: (context, index) {
+                    var activity = activities[index].data() as Map<String, dynamic>;
+                    String userInitial = (activity['user'] ?? 'U').toString();
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.blue.shade100,
+                        child: Text(userInitial.isNotEmpty ? userInitial[0].toUpperCase() : 'U'),
+                      ),
+                      title: Text(activity['action'] ?? 'Unknown action'),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (activity['details'] != null)
+                            Text(activity['details']),
+                          Text(
+                            activity['timestamp']?.toDate().toString() ?? 'No date',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class AdminPanelScreen extends StatefulWidget {
   final String username;
@@ -25,60 +231,178 @@ class AdminPanelScreen extends StatefulWidget {
   AdminPanelScreenState createState() => AdminPanelScreenState();
 }
 
-class AdminPanelScreenState extends State<AdminPanelScreen> {
+class AdminPanelScreenState extends State<AdminPanelScreen> with ActivityLogger {
   int _selectedIndex = 0;
   late String username;
   late String email;
+  bool _isLoading = false;
+
+  Map<String, int> _systemStats = {
+    'totalSchools': 0,
+    'activeSchools': 0,
+    'totalUsers': 0,
+  };
 
   @override
   void initState() {
     super.initState();
     username = widget.username;
     email = widget.email;
-    _fetchUserData();
-  }
-
-  Future<void> _fetchUserData() async {
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.userId)
-        .get();
-
-    setState(() {
-      username = userDoc['username'];
-      email = userDoc['email'];
+    _initializeSuperAdmin().then((_) {
+      _fetchSystemStats();
+      _logInitialAccess();
     });
   }
 
+
+  Future<void> _logInitialAccess() async {
+    await logActivity(
+      widget.userId,
+      widget.username,
+      'Admin Panel Access',
+      'Super admin accessed the dashboard',
+    );
+  }
+
+  Future<void> _fetchSystemStats() async {
+    setState(() => _isLoading = true);
+    try {
+      var schoolsSnapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .get();
+
+      var activeSchools = await FirebaseFirestore.instance
+          .collection('schools')
+          .where('status', isEqualTo: 'active')
+          .get();
+
+      var usersSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .get();
+
+      setState(() {
+        _systemStats = {
+          'totalSchools': schoolsSnapshot.size,
+          'activeSchools': activeSchools.size,
+          'totalUsers': usersSnapshot.size,
+        };
+        _isLoading = false;
+      });
+
+      // Log stats refresh
+      await logActivity(
+        widget.userId,
+        username,
+        'Stats Refresh',
+        'System statistics updated',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching statistics: $e')),
+        );
+      }
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // Add this to your initState
+  Future<void> _initializeSuperAdmin() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Get current user
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('No authenticated user');
+      }
+
+      // Check if superadmin document exists
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        // Create superadmin document
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .set({
+          'role': 'superadmin',
+          'email': currentUser.email,
+          'name': username,
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastLogin': FieldValue.serverTimestamp(),
+          'status': 'active'
+        });
+
+        setState(() {
+          username = username;
+          email = currentUser.email ?? '';
+        });
+      }
+
+      // Log superadmin access
+      await FirebaseFirestore.instance
+          .collection('activity_log')
+          .add({
+        'action': 'Superadmin Access',
+        'userId': currentUser.uid,
+        'timestamp': FieldValue.serverTimestamp(),
+        'details': 'Superadmin account accessed system'
+      });
+
+    } catch (e) {
+      debugPrint('Error initializing superadmin: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error initializing superadmin: $e'))
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+
   List<Widget> get _widgetOptions => <Widget>[
-    const DashboardScreen(userId: ''),
+    DashboardScreen(
+      userId: widget.userId,
+      username: username,
+      stats: _systemStats,
+      isLoading: _isLoading,
+    ),
     const NotificationsScreen(),
-    const AnalyticsScreen(),
-    const AdminCreationScreen(),
+    const SchoolManagementScreen(),
     ProfileScreen(
       userId: widget.userId,
       username: username,
       email: email,
-      userType: "",
+      userType: "superadmin",
       accentColor: Colors.blueAccent,
     ),
-    const AdminManagementScreen(),
-    FirestoreStructure(), // Create an instance of FirestoreStructure
+    FirestoreStructure(),
   ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('Super admin panel', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20)),
+        title: const Text(
+            'Super Admin Panel',
+            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20)
+        ),
         backgroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchSystemStats,
+          ),
+        ],
       ),
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
@@ -92,12 +416,8 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
             label: 'Notifications',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
-            label: 'Analytics',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.admin_panel_settings),
-            label: 'Admin Management',
+            icon: Icon(Icons.school),
+            label: 'Schools',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.account_circle),
@@ -109,349 +429,33 @@ class AdminPanelScreenState extends State<AdminPanelScreen> {
           ),
         ],
         currentIndex: _selectedIndex,
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.white,
         selectedItemColor: Colors.blue[800],
         unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
-      ),
-    );
-  }
-}
-
-class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key, required String userId});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                Expanded(
-                  child: _buildQuickAccessCard(
-                    context,
-                    icon: Icons.school,
-                    title: 'Schools',
-                    onTap: () => _navigateToDashboard(context,
-                        const SchoolDashboardScreen(username: '', userId: '', schoolName: '', schoolCode: '',)),
-                  ),
-                ),
-                Expanded(
-                  child: _buildQuickAccessCard(
-                    context,
-                    icon: Icons.business,
-                    title: 'Companies',
-                    onTap: () => _navigateToDashboard(context,
-                        const CompanyDashboardScreen(username: '', userId: '')),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                Expanded(
-                  child: _buildQuickAccessCard(
-                    context,
-                    icon: Icons.people,
-                    title: 'Parents',
-                    onTap: () => _navigateToDashboard(context,
-                        const ParentDashboardScreen(username: '', userId: '', schoolCode: '', schoolName: '',)),
-                  ),
-                ),
-                Expanded(
-                  child: _buildQuickAccessCard(
-                    context,
-                    icon: Icons.admin_panel_settings,
-                    title: 'School Admin',
-                    onTap: () => _navigateToDashboard(
-                        context,
-                        const AdminDashboardScreen(
-                          username: '', userId: '', schoolCode: '', schoolName: '',)),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                Expanded(
-                  child: _buildQuickAccessCard(
-                    context,
-                    icon: Icons.gavel,
-                    title: 'Party',
-                    onTap: () => _navigateToDashboard(
-                        context,
-                        const PoliticalPartyDashboardScreen(
-                            username: '', userId: '')),
-                  ),
-                ),
-                Expanded(
-                  child: _buildQuickAccessCard(
-                    context,
-                    icon: Icons.analytics,
-                    title: 'Analytics',
-                    onTap: () {
-                      // Navigate to analytics dashboard
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 50),
-            Text(
-              'Latest activity',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 10),
-            _buildActivityList(),
-          ],
-        ),
+        onTap: _onItemSelected,
       ),
     );
   }
 
-  Widget _buildQuickAccessCard(
-      BuildContext context, {
-        required IconData icon,
-        required String title,
-        required VoidCallback onTap,
-      }) {
-    return InkWell(
-      onTap: onTap,
-      child: Card(
-        elevation: 7,
-        color: Colors.blue,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Icon(
-                icon,
-                size: 40,
-                color: Colors.white,
-              ),
-              const SizedBox(height: 8),
-              Text(title,
-                  style: const TextStyle(fontSize: 18, color: Colors.white)),
-            ],
-          ),
-        ),
-      ),
+  void _onItemSelected(int index) async {
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    // Log navigation
+    String section = [
+      'Dashboard',
+      'Notifications',
+      'Schools',
+      'Profile',
+      'DB Structure'
+    ][index];
+
+    await logActivity(
+      widget.userId,
+      username,
+      'Navigation',
+      'Accessed $section section',
     );
-  }
-
-  Widget _buildActivityList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('activity_log')
-          .orderBy('timestamp', descending: true)
-          .limit(5)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(height: 100),
-              Icon(Icons.no_accounts_outlined, size: 40, color: Colors.grey),
-              SizedBox(width: 20),
-              Text(
-                'No activity to show now',
-                style: TextStyle(
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.grey),
-              ),
-            ],
-          );
-        }
-        var activities = snapshot.data!.docs;
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: activities.length,
-          itemBuilder: (context, index) {
-            var activity = activities[index];
-            return ListTile(
-              leading: CircleAvatar(
-                child: Text(activity['user'][0]),
-              ),
-              title: Text(activity['action']),
-              subtitle: Text(activity['timestamp'].toDate().toString()),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _navigateToDashboard(BuildContext context, Widget dashboard) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => dashboard),
-    );
-  }
-}
-
-class AnalyticsScreen extends StatelessWidget {
-  const AnalyticsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Analytics',
-            style: Theme.of(context).textTheme.headlineMedium),
-      ),
-      body: const Center(
-        child: Text('Analytics Screen'),
-      ),
-    );
-  }
-}
-
-class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Notifications',
-            style: Theme.of(context).textTheme.headlineMedium),
-      ),
-      body: const Center(
-        child: Text('Super Admin Notifications'),
-      ),
-    );
-  }
-}
-
-class AdminManagementScreen extends StatefulWidget {
-  const AdminManagementScreen({super.key});
-
-  @override
-  AdminManagementScreenState createState() => AdminManagementScreenState();
-}
-
-class AdminManagementScreenState extends State<AdminManagementScreen> {
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  String _role = 'Super Admin'; // Default role is Super Admin
-  String _schoolId = ''; // Default is empty for Super Admins
-
-  @override
-  void dispose() {
-    _usernameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Admin Management',
-            style: Theme.of(context).textTheme.headlineMedium),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            DropdownButton<String>(
-              value: _role,
-              onChanged: (String? newRole) {
-                setState(() {
-                  _role = newRole!;
-                  _schoolId = ''; // Reset schoolId when role changes
-                });
-              },
-              items: <String>[
-                'Super Admin',
-                'School Admin',
-                'Company Admin',
-                'Party Admin'
-              ].map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-            ),
-            if (_role == 'School Admin')
-              TextField(
-                controller: TextEditingController(text: _schoolId),
-                decoration: const InputDecoration(
-                  labelText: 'School ID',
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _schoolId = value;
-                  });
-                },
-              ),
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(labelText: 'Username'),
-            ),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                _createAdmin();
-              },
-              child: const Text('Create Admin'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _createAdmin() async {
-    try {
-      DocumentReference userRef = await FirebaseFirestore.instance
-          .collection('users')
-          .add({
-        'username': _usernameController.text,
-        'email': _emailController.text,
-        'role': _role,
-        if (_role == 'School Admin') 'schoolId': _schoolId,
-      });
-
-      if (_role == 'School Admin') {
-        await FirebaseFirestore.instance
-            .collection('schools')
-            .doc(_schoolId)
-            .collection('admins')
-            .doc(userRef.id)
-            .set({
-          'username': _usernameController.text,
-          'email': _emailController.text,
-        });
-      }
-    } catch (error) {
-      // Handle error
-    }
   }
 }

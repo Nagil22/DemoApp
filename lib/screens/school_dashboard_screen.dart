@@ -43,7 +43,7 @@ class SchoolDashboardScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => AdminDashboardScreen(schoolCode: schoolCode, schoolName: schoolName, username: '', userId: '',),
+                    builder: (context) => AdminDashboardScreen(schoolCode: schoolCode, schoolName: schoolName, username: '', userId: '', schoolType: '',),
                   ),
                 );
               }),
@@ -51,7 +51,7 @@ class SchoolDashboardScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => TeacherDashboardScreen(schoolCode: schoolCode, schoolName: schoolName, username: '', userId: '', ),
+                    builder: (context) => TeacherDashboardScreen(schoolCode: schoolCode, schoolName: schoolName, username: '', userId: '', schoolType: '', ),
                   ),
                 );
               }),
@@ -67,7 +67,7 @@ class SchoolDashboardScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => StudentDashboardScreen(schoolCode: schoolCode, schoolName: schoolName, username: '', userId: '',),
+                    builder: (context) => StudentDashboardScreen(schoolCode: schoolCode, schoolName: schoolName, username: '', userId: '', schoolType: '',),
                   ),
                 );
               }),

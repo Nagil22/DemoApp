@@ -1,3 +1,4 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -8,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Import your custom screens and widgets
+import 'dash_screens/school_management_screen.dart';
 import 'nav/nav_items.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -31,33 +33,45 @@ import 'theme_provider.dart';
 import 'structure.dart';
 
 bool showOnBoarding = true;
-
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  final prefs = await SharedPreferences.getInstance();
-  showOnBoarding = prefs.getBool('ON_BOARDING') ?? true;
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
-  // Initialize FCM
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  await messaging.requestPermission();
+    // Add debug print
+    print("Firebase initialized successfully");
 
-  // Handle background messages
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    if (kDebugMode) {
+      await FirebaseAppCheck.instance.activate(
+        androidProvider: AndroidProvider.debug,
+      );
+      print("Firebase App Check initialized in debug mode");
+    }
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (context) => NavItems()),
-        ChangeNotifierProvider(create: (context) => ThemeProvider()),
-      ],
-      child: const MyApp(),
-    ),
-  );
+    final prefs = await SharedPreferences.getInstance();
+    showOnBoarding = prefs.getBool('ON_BOARDING') ?? true;
+
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    await messaging.requestPermission();
+
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (context) => NavItems()),
+          ChangeNotifierProvider(create: (context) => ThemeProvider()),
+        ],
+        child: const MyApp(),
+      ),
+    );
+  } catch (e, stackTrace) {
+    print("Error during initialization: $e");
+    print("Stack trace: $stackTrace");
+  }
 }
 
+@pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   if (kDebugMode) {
@@ -131,16 +145,17 @@ class MyApp extends StatelessWidget {
             '/profile': (context) => const ProfileScreen(username: '', email: '', userType: '', userId: '', accentColor: Colors.blueAccent,),
             '/change-password': (context) => const ChangePasswordScreen(),
             '/settings': (context) => const SettingsScreen(),
-            '/school-dashboard': (context) => const StudentDashboardScreen(username: '', userId: '', schoolCode: '', schoolName: ''),
-            '/student-dashboard': (context) => const StudentDashboardScreen(username: '', userId: '', schoolCode: '', schoolName: ''),
+            '/school-dashboard': (context) => const StudentDashboardScreen(username: '', userId: '', schoolCode: '', schoolName: '', schoolType: '',),
+            '/student-dashboard': (context) => const StudentDashboardScreen(username: '', userId: '', schoolCode: '', schoolName: '', schoolType: '',),
             '/parent-dashboard': (context) => const ParentDashboardScreen(username:'', userId: '', schoolCode: '', schoolName: ''),
-            '/teacher-dashboard': (context) => const TeacherDashboardScreen(username: '', userId:'', schoolCode: '', schoolName: '', ),
-            '/admin-dashboard': (context) => const AdminDashboardScreen(username: '', userId: '', schoolName: '', schoolCode: '',),
+            '/teacher-dashboard': (context) => const TeacherDashboardScreen(username: '', userId:'', schoolCode: '', schoolName: '', schoolType: '', ),
+            '/admin-dashboard': (context) => const AdminDashboardScreen(username: '', userId: '', schoolName: '', schoolCode: '', schoolType: '',),
             '/company-dashboard': (context) => const CompanyDashboardScreen(username: '', userId: ''),
             '/party-dashboard': (context) => const PoliticalPartyDashboardScreen(username: '', userId: ''),
             '/payments': (context) => const PaymentsScreen(schoolCode: '', userId: '',),
             '/notifications': (context) => const NotificationsScreen(),
             '/firestore-structure': (context) => FirestoreStructure(),
+            '/school-management': (context) => const SchoolManagementScreen(),
           },
           onUnknownRoute: (settings) => MaterialPageRoute(
             builder: (context) => const LoginScreen(),
