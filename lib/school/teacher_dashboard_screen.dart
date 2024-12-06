@@ -147,39 +147,81 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     });
   }
 
-
   void _showCommunicationHubDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Communication Hub'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop(); // Close the dialog
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (context) =>
-                        UniversalMessagingScreen(
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16.0),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Communication Hub',
+                  style: TextStyle(
+                    fontSize: 20.0,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24.0),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => UniversalMessagingScreen(
                           userId: widget.userId,
                           schoolId: widget.schoolCode,
                           userType: userType,
                           username: widget.username,
                         ),
-                  ));
-                },
-                child: Text('Messages ($_unreadMessageCount unread)'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12.0),
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.message, size: 20.0),
+                      const SizedBox(width: 8.0),
+                      Text(
+                        'Messages ${_unreadMessageCount > 0 ? "($_unreadMessageCount unread)" : "(0 unread)"}',
+                        style: const TextStyle(fontSize: 16.0),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16.0),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey[700],
+                  ),
+                  child: const Text(
+                    'Close',
+                    style: TextStyle(fontSize: 16.0),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -306,18 +348,20 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(
-            'Welcome, ${widget.username}',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 20
-            )
-        ),
+              'Welcome, ${widget.username}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 20,
+                  color: Colors.white
+              )
+          ),
+          backgroundColor: _accentColor,
           actions: [
             Stack(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.notifications, color: Colors.black),
+                  icon: const Icon(Icons.notifications, color: Colors.white),
                   onPressed: _showNotificationsDialog,
                 ),
                 if (notificationCount > 0)
@@ -350,7 +394,7 @@ class TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             Stack(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.message, color: Colors.black),
+                  icon: const Icon(Icons.message, color: Colors.white),
                   onPressed: _showCommunicationHubDialog,
                 ),
                 if (_unreadMessageCount > 0)

@@ -20,6 +20,18 @@ class UniversalMessagingScreen extends StatefulWidget {
   UniversalMessagingScreenState createState() => UniversalMessagingScreenState();
 }
 
+// Create a fixed list of background colors for avatars
+final List<Color> avatarColors = [
+  Colors.blue[400]!,
+  Colors.purple[400]!,
+  Colors.orange[400]!,
+  Colors.green[400]!,
+  Colors.pink[400]!,
+  Colors.teal[400]!,
+  Colors.indigo[400]!,
+  Colors.red[400]!,
+];
+
 class UniversalMessagingScreenState extends State<UniversalMessagingScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -32,6 +44,7 @@ class UniversalMessagingScreenState extends State<UniversalMessagingScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('New Message'),
+          backgroundColor: Colors.white,
           content: SizedBox(
             width: double.maxFinite,
             child: StreamBuilder<QuerySnapshot>(
@@ -52,14 +65,54 @@ class UniversalMessagingScreenState extends State<UniversalMessagingScreen> {
                 var users = snapshot.data?.docs ?? [];
                 users = users.where((doc) => doc.id != widget.userId).toList();
 
-                return ListView.builder(
+                return ListView.separated(
                   shrinkWrap: true,
+                  physics: const AlwaysScrollableScrollPhysics(),
                   itemCount: users.length,
+                  separatorBuilder: (context, index) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     var userData = users[index].data() as Map<String, dynamic>;
+                    String name = userData['name'] ?? 'Unknown';
+                    String role = userData['role'] ?? '';
+                    String initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+                    // Use the name's first character ASCII value to deterministically assign a color
+                    final colorIndex = name.isNotEmpty
+                        ? name.codeUnitAt(0) % avatarColors.length
+                        : 0;
+
                     return ListTile(
-                      title: Text(userData['name'] ?? 'Unknown'),
-                      subtitle: Text(userData['role'] ?? ''),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 4.0,
+                        vertical: 8.0,
+                      ),
+                      leading: CircleAvatar(
+                        radius: 24,
+                        backgroundColor: avatarColors[colorIndex],
+                        child: Text(
+                          initial,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(
+                        role.toLowerCase(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          height: 1.5,
+                        ),
+                      ),
                       onTap: () {
                         setState(() {
                           _selectedRecipientId = users[index].id;
@@ -67,6 +120,10 @@ class UniversalMessagingScreenState extends State<UniversalMessagingScreen> {
                         });
                         Navigator.of(context).pop();
                       },
+                      trailing: const Icon(
+                        Icons.chevron_right,
+                        color: Colors.grey,
+                      ),
                     );
                   },
                 );
@@ -236,7 +293,15 @@ class UniversalMessagingScreenState extends State<UniversalMessagingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selectedRecipientName ?? 'Messages'),
+        title: Text(
+          _selectedRecipientName ?? 'Messages',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 20,
+          )
+      ),
+        backgroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add),
@@ -345,19 +410,6 @@ class UniversalMessagingScreenState extends State<UniversalMessagingScreen> {
             ),
           );
         }
-
-        // Create a fixed list of background colors for avatars
-        final List<Color> avatarColors = [
-          Colors.blue[400]!,
-          Colors.purple[400]!,
-          Colors.orange[400]!,
-          Colors.green[400]!,
-          Colors.pink[400]!,
-          Colors.teal[400]!,
-          Colors.indigo[400]!,
-          Colors.red[400]!,
-        ];
-
         return ListView.separated(
           shrinkWrap: true,
           physics: const AlwaysScrollableScrollPhysics(),
